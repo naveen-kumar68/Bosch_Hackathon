@@ -1,0 +1,6 @@
+# Explicitly reviewed legitimate pairs; exact popularity matches are also excluded.
+allowlist:
+  cargo:
+    - [sha2, sha3]  # Separate RustCrypto SHA-2 and SHA-3 algorithm crates.
+  pypi:
+    - [pytest, pytest-cov]  # Pytest and its coverage plugin.

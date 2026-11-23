@@ -1,0 +1,9 @@
+[package]
+name = "middle"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+leaf-one = { path = "../leaf-one" }
+leaf-two = { path = "../leaf-two" }
+leaf-three = { path = "../leaf-three" }

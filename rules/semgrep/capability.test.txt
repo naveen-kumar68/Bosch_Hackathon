@@ -1,0 +1,14 @@
+# ruleid: guardian-network
+TcpStream::connect("127.0.0.1:9");
+# ruleid: guardian-process
+std::process::Command::new("compiler");
+# ruleid: guardian-environment
+std::env::vars();
+# ruleid: guardian-decode
+base64::decode("test");
+# ruleid: guardian-write
+std::fs::write("output", "test");
+# ruleid: guardian-embedded-binary
+include_bytes!("fixture.bin");
+# ok: guardian-network
+let text = "hello";

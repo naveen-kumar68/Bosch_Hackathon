@@ -1,0 +1,45 @@
+[project]
+name = "supply-chain-guardian"
+version = "0.1.0"
+description = "Evidence-backed software supply chain inventory"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "cvss==3.6",
+    "cyclonedx-bom==9.0.0",
+    "detect-secrets==1.5.0",
+    "httpx==0.28.1",
+    "networkx==3.7",
+    "openai==3.57.0",
+    "packageurl-python==0.17.6",
+    "pip-audit==2.10.1",
+    "pydantic==2.14.4",
+    "python-dotenv==1.2.4",
+    "pyvis==0.3.2",
+    "pyyaml==6.0.4",
+    "rapidfuzz==3.14.6",
+    "spdx-tools==0.8.5",
+    "typer==0.29.2",
+]
+
+[project.scripts]
+guardian = "guardian.cli:app"
+
+[build-system]
+requires = ["hatchling==1.27.0"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["guardian"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[dependency-groups]
+dev = [
+    "pytest==9.2.0",
+    "ruff==0.17.6",
+]
