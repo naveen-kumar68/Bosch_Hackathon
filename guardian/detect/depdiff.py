@@ -54,6 +54,19 @@ def inventory_diff(before: list[Component], after: list[Component]) -> dict:
                             }
                         )
                     if (
+                        prior.source in {"registry", "crates.io"}
+                        and prior.checksum
+                        and not component.checksum
+                    ):
+                        result["integrity"].append(
+                            {
+                                "type": "registry_checksum_missing",
+                                "component": component.purl,
+                                "previous_source": prior.source,
+                                "current_source": component.source,
+                            }
+                        )
+                    if (
                         prior.checksum
                         and component.checksum
                         and prior.checksum != component.checksum

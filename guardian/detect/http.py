@@ -18,7 +18,7 @@ class CachedHTTP:
         self.recorder = recorder
         self.offline = offline
         self.client = client or httpx.Client(
-            timeout=60,
+            timeout=180,
             follow_redirects=True,
             headers={
                 "User-Agent": "SupplyChainGuardian/0.1 (https://github.com/naveen-kumar68/Bosch_Hackathon)"
@@ -41,7 +41,21 @@ class CachedHTTP:
                 raise FileNotFoundError(f"No cached response for {url}")
             time.sleep(max(0, 1.05 - (time.monotonic() - self.last_request)))
             self.last_request = time.monotonic()
-            response = self.client.get(url)
+            try:
+                response = self.client.get(url)
+            except httpx.HTTPError as error:
+                self.recorder.capture(
+                    json.dumps(
+                        {"status": "request_failed", "error_type": type(error).__name__}
+                    ).encode(),
+                    tool="httpx",
+                    version=httpx.__version__,
+                    command=["GET", url],
+                    cwd=self.directory,
+                    description="Metadata request failed; no registry fact inferred",
+                    returncode=1,
+                )
+                raise
             response.raise_for_status()
             data = response.content
             cached = {
@@ -50,7 +64,7 @@ class CachedHTTP:
                 "sha256": hashlib.sha256(data).hexdigest(),
                 "body_hex": data.hex(),
             }
-            path.write_text(json.dumps(cached), encoding="utf-8")
+            path.write_text(json.dumps(cached), encoding="utf-8", newline="\n")
         evidence = self.recorder.capture(
             data,
             tool="httpx",

@@ -95,6 +95,14 @@ Responses must carry cache timestamps and raw evidence hashes; unknown fields
 must remain unknown rather than being interpreted as negative facts.
 
 Version/import/help checks passed for all selected tools, including both scanner
-containers and cargo-audit. Grype database initialization is still in progress;
+containers and cargo-audit. Grype database initialization completed successfully;
 live Judge verification requires the owner's `.env` configuration. Those are
 explicit runtime prerequisites, not successful acceptance results.
+
+Capability scanning uses the digest-pinned official Semgrep and GuardDog Docker
+images in tools.lock.md. Only scanner tools run; target archives are mounted
+read-only. Both use network isolation, non-root UID, dropped capabilities and
+resource limits. Six Semgrep capability-rule tests passed inside that image.
+The owner approved PyPI JSON SHA256 as an explicit fallback when requirement pins
+lack hashes. Missing locked integrity is still reported. Registry HTTP timeout
+was increased from 60 to 180 seconds after two read timeouts and owner approval.

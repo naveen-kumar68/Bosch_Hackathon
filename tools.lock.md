@@ -44,7 +44,7 @@ Library imports, `pytest --version` (9.2.0), and `ruff --version` (0.17.6) passe
 | Tool | Pin | Verification status |
 |---|---|---|
 | OSV-Scanner | 2.7.1 | Native Windows version check passed; release checksum matched |
-| Grype | 0.122.1 | Native Windows version check passed; release checksum matched; DB updating |
+| Grype | 0.122.1 | Native version/checksum checks passed; vulnerability DB update completed |
 | zizmor | 1.33.1 | Native Windows version check passed |
 | cargo-audit | 0.23.0 | Installed with --locked; `cargo-audit audit --version` passed |
 | GuardDog | 3.2.0 | Offline container help passed; cache refresh unavailable under network isolation |

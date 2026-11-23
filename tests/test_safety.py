@@ -19,9 +19,9 @@ def test_workspace_escape_rejected(tmp_path):
         contained_path(tmp_path, "../outside")
 
 
-def test_llm_is_disabled():
-    with pytest.raises(NotImplementedError, match="outside Checkpoint 1"):
-        create_client()
+def test_llm_requires_explicit_provider_configuration(tmp_path):
+    with pytest.raises(ValueError, match="settings missing"):
+        create_client(tmp_path / "absent.env")
 
 
 def test_no_ecosystem_branches_downstream():

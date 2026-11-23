@@ -1,0 +1,31 @@
+rules:
+  - id: guardian-network
+    languages: [generic]
+    message: Potential network capability in build-time source
+    severity: WARNING
+    pattern-regex: 'TcpStream::connect|std::net|reqwest|ureq|requests\.(get|post)|urllib\.request'
+  - id: guardian-process
+    languages: [generic]
+    message: Potential process execution
+    severity: WARNING
+    pattern-regex: 'std::process::Command|Command::new|subprocess\.|os\.system'
+  - id: guardian-environment
+    languages: [generic]
+    message: Potential environment or credential access
+    severity: WARNING
+    pattern-regex: 'env::vars|os\.environ|\.ssh|\.cargo/credentials|HOME|wallet'
+  - id: guardian-decode
+    languages: [generic]
+    message: Encoded payload decoding requires contextual review
+    severity: WARNING
+    pattern-regex: 'base64|hex::decode|fromhex'
+  - id: guardian-write
+    languages: [generic]
+    message: File write requires OUT_DIR contextual review
+    severity: WARNING
+    pattern-regex: 'fs::write|File::create|write_all'
+  - id: guardian-embedded-binary
+    languages: [generic]
+    message: Embedded binary content
+    severity: WARNING
+    pattern-regex: 'include_bytes!.*\.(exe|bin|dll|so)'

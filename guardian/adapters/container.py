@@ -15,7 +15,7 @@ class ContainerAdapter:
         image = f"{target.source}@{revision}"
         raw, evidence, _ = recorder.run(["syft", "scan", "docker:" + image, "-o", "syft-json"])
         document = json.loads(raw)
-        (recorder.output / "syft.json").write_text(raw, encoding="utf-8")
+        (recorder.output / "syft.json").write_text(raw, encoding="utf-8", newline="\n")
         root = PackageURL(
             type="oci",
             name=target.source.rsplit("/", 1)[-1],

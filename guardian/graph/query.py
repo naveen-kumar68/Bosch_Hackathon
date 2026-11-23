@@ -24,8 +24,11 @@ def paths(graph: nx.DiGraph, query: str) -> Iterator[list[str]]:
         for node, data in context["nodes"].items():
             if data["purl"] not in destinations:
                 continue
+            relevant = resolved.subgraph(nx.ancestors(resolved, node) | {node})
             for root in context["roots"]:
-                candidates = [[root]] if root == node else nx.all_simple_paths(resolved, root, node)
+                if root not in relevant:
+                    continue
+                candidates = [[root]] if root == node else nx.all_simple_paths(relevant, root, node)
                 for candidate in candidates:
                     projected = tuple(context["nodes"][item]["purl"] for item in candidate)
                     if len(set(projected)) == len(projected) and projected not in seen:

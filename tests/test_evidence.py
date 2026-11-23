@@ -10,8 +10,11 @@ def test_evidence_hash_and_timestamp(sample_scan, tmp_path):
     validate_evidence(sample_scan, tmp_path)
     record = sample_scan.evidence[0]
     assert record.timestamp.utcoffset().total_seconds() == 0
-    assert hashlib.sha256((tmp_path / record.raw_path).read_bytes()).hexdigest() == record.sha256
-    (tmp_path / record.raw_path).write_bytes(b"tampered")
+    from pathlib import Path
+
+    raw = Path(__file__).resolve().parents[1] / record.raw_path
+    assert hashlib.sha256(raw.read_bytes()).hexdigest() == record.sha256
+    raw.write_bytes(b"tampered")
     with pytest.raises(ValueError, match="hash mismatch"):
         validate_evidence(sample_scan, tmp_path)
 

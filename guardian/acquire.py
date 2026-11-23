@@ -39,6 +39,10 @@ def acquire(target: Target, workspace: Path, recorder: Recorder) -> tuple[Path, 
                 "-c",
                 "core.hooksPath=",
                 "clone",
+                "--config",
+                "core.autocrlf=false",
+                "--config",
+                "core.longpaths=true",
                 "--depth",
                 "1",
                 "--branch",
@@ -48,6 +52,8 @@ def acquire(target: Target, workspace: Path, recorder: Recorder) -> tuple[Path, 
                 str(path),
             ]
         )
+    recorder.run(["git", "config", "core.autocrlf", "false"], cwd=path)
+    recorder.run(["git", "config", "core.longpaths", "true"], cwd=path)
     remote, _, _ = recorder.run(["git", "remote", "get-url", "origin"], cwd=path)
     if remote.strip().removesuffix(".git") != target.source.removesuffix(".git"):
         raise ValueError("Existing target checkout has a different origin")

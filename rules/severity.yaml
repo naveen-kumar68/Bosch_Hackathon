@@ -14,6 +14,7 @@ rules:
   dependency_added: {severity: info, rationale: Package is newly present in the inventory.}
   dependency_removed: {severity: info, rationale: Package is absent from the new inventory.}
   dependency_upgraded: {severity: info, rationale: Package version increased.}
+  dependency_changed: {severity: info, rationale: The package version set changed without a single upgrade direction.}
   dependency_downgraded: {severity: medium, rationale: Package version decreased and needs review.}
   new_direct_dependency: {severity: low, rationale: Root now directly depends on this package.}
   new_dependency: {severity: low, rationale: A package version introduced a new dependency.}
@@ -25,6 +26,7 @@ rules:
   pip_git_mutable: {severity: medium, rationale: Git dependency installation uses a mutable reference.}
   curl_pipe_shell: {severity: high, rationale: Workflow pipes network content into a shell.}
   workflow_permissions: {severity: medium, rationale: Workflow permissions are implicit or excessively broad.}
+  workflow_zizmor: {severity: medium, rationale: Independent workflow scanner finding; original rule and level are retained.}
   untrusted_checkout: {severity: high, rationale: Privileged workflow checks out pull request code.}
   mutable_base_image: {severity: medium, rationale: Container base is not pinned to an immutable digest.}
   unstable_base_image: {severity: medium, rationale: Container base uses an unstable or explicitly unsupported tag.}

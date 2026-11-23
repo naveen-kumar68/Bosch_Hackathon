@@ -40,6 +40,84 @@ def deduplicate(observations: list[Vulnerability]) -> list[Vulnerability]:
     return result
 
 
+def parse_audit(document: dict, components, evidence_id: str) -> list[Vulnerability]:
+    records = [(item, None) for item in document.get("vulnerabilities", {}).get("list", [])]
+    for flag, items in document.get("warnings", {}).items():
+        records.extend((item, flag) for item in items)
+    result = []
+    for item, flag in records:
+        advisory = item.get("advisory")
+        if not advisory:
+            continue
+        package = item["package"]
+        for component in components:
+            if component.ecosystem != "cargo" or (component.name, component.version) != (
+                package["name"],
+                package["version"],
+            ):
+                continue
+            result.append(
+                Vulnerability(
+                    id=advisory["id"],
+                    aliases=advisory.get("aliases", []),
+                    component=component.purl,
+                    evidence_ids=[evidence_id],
+                    sources=["cargo-audit"],
+                    vectors=[advisory["cvss"]] if advisory.get("cvss") else [],
+                    fixed_versions=item.get("versions", {}).get("patched", []),
+                    flags=[flag] if flag else [],
+                )
+            )
+    return result
+
+
+def parse_pip(document, components, evidence_id):
+    result = []
+    for item in document.get("dependencies", []):
+        matches = [
+            c
+            for c in components
+            if c.ecosystem == "pypi"
+            and c.name.replace("_", "-").lower() == item["name"].replace("_", "-").lower()
+            and c.version == item["version"]
+        ]
+        for component in matches:
+            for vulnerability in item.get("vulns", []):
+                result.append(
+                    Vulnerability(
+                        id=vulnerability["id"],
+                        aliases=vulnerability.get("aliases", []),
+                        component=component.purl,
+                        evidence_ids=[evidence_id],
+                        sources=["pip-audit"],
+                        fixed_versions=vulnerability.get("fix_versions", []),
+                    )
+                )
+    return result
+
+
+def parse_grype(document, components, evidence_id):
+    result = []
+    for match in document.get("matches", []):
+        artifact, advisory = match["artifact"], match["vulnerability"]
+        for component in components:
+            if (component.name, component.version) != (artifact["name"], artifact["version"]):
+                continue
+            vectors = [c["vector"] for c in advisory.get("cvss", []) if c.get("vector")]
+            result.append(
+                Vulnerability(
+                    id=advisory["id"],
+                    aliases=[],
+                    component=component.purl,
+                    evidence_ids=[evidence_id],
+                    sources=["grype"],
+                    vectors=vectors,
+                    fixed_versions=advisory.get("fix", {}).get("versions", []),
+                )
+            )
+    return result
+
+
 def parse_osv(document: dict, components, evidence_id: str) -> list[Vulnerability]:
     index = defaultdict(list)
     for component in components:

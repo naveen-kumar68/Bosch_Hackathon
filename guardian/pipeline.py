@@ -42,7 +42,8 @@ def validate_evidence(scan: ScanResult, output: Path) -> None:
         if not item.evidence_ids or not set(item.evidence_ids) <= records.keys():
             raise ValueError("Missing or invalid evidence reference")
     for record in scan.evidence:
-        path = (output / record.raw_path).resolve()
+        base = Path(__file__).resolve().parents[1] if record.path_base == "repository" else output
+        path = (base / record.raw_path).resolve()
         if not path.is_relative_to(output.resolve()):
             raise ValueError("Evidence path escapes output directory")
         if hashlib.sha256(path.read_bytes()).hexdigest() != record.sha256:
@@ -108,6 +109,10 @@ def scan(target: Target, root: Path) -> ScanResult:
         component.scopes = data["scopes"]
     save(output / "graph.sqlite", graph, result)
     export(graph, output)
-    (output / "summary.md").write_text(summary(graph, result.warnings), encoding="utf-8")
-    (output / "scan.json").write_text(result.model_dump_json(indent=2), encoding="utf-8")
+    (output / "summary.md").write_text(
+        summary(graph, result.warnings), encoding="utf-8", newline="\n"
+    )
+    (output / "scan.json").write_text(
+        result.model_dump_json(indent=2), encoding="utf-8", newline="\n"
+    )
     return result

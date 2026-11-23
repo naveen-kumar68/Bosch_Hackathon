@@ -12,6 +12,7 @@ def export(graph: nx.DiGraph, output: Path) -> None:
     (output / "graph.json").write_text(
         json.dumps(nx.node_link_data(graph, edges="edges"), indent=2),
         encoding="utf-8",
+        newline="\n",
     )
     serializable = nx.DiGraph(
         **{
@@ -69,7 +70,7 @@ def export(graph: nx.DiGraph, output: Path) -> None:
         '"interaction":{"navigationButtons":true,"keyboard":true}}'
     )
     rendered = network.generate_html()
-    (output / "graph.html").write_text(rendered, encoding="utf-8")
+    (output / "graph.html").write_text(rendered, encoding="utf-8", newline="\n")
 
 
 def summary(graph: nx.DiGraph, warnings: list[str]) -> str:

@@ -25,6 +25,20 @@ jobs:
       - name: Select Rust toolchain
         run: rustup default 1.91.1
       - run: uv sync --locked
-      - run: uv run ruff check guardian tests
-      - run: uv run ruff format --check guardian tests
+      - run: uv run ruff check guardian tests demo
+      - run: uv run ruff format --check guardian tests demo
       - run: uv run pytest -q
+  static-rules:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Test static rules without network or target execution
+        run: >-
+          docker run --rm --network none --cap-drop ALL
+          --security-opt no-new-privileges --pids-limit 256 --memory 2g --cpus 2
+          --user 1000:1000 --env HOME=/tmp --tmpfs /tmp:rw,nosuid,size=256m
+          --mount type=bind,source=${{ github.workspace }}/rules/semgrep,target=/src,readonly
+          semgrep/semgrep@sha256:6e1b04340e60e910fbb4ddbf3c857ab0918f064417ad5ac530014ccb3cf8c8f1
+          semgrep --test --config /src --metrics off --disable-version-check

@@ -9,6 +9,7 @@ Severity = Literal["info", "low", "medium", "high", "critical"]
 
 class Assessment(Model):
     label: Literal["AI inference"] = "AI inference"
+    origin: Literal["live", "recorded_test"] = "live"
     finding_id: str
     verdict: Literal["benign", "suspicious", "malicious", "unknown"]
     confidence: float = Field(ge=0, le=1)

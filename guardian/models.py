@@ -18,6 +18,7 @@ class Target(Model):
     revision: str | None = None
     kind: Literal["repository", "image"] = "repository"
     subdirectory: str = "."
+    baseline: str | None = None
 
 
 class Evidence(Model):
@@ -28,6 +29,7 @@ class Evidence(Model):
     timestamp: datetime
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     raw_path: str
+    path_base: str = "output"
     cwd: str
     returncode: int = 0
     description: str = ""

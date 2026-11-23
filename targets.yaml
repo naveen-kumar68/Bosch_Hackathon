@@ -12,6 +12,12 @@ targets:
     ref: 0.6.0
     revision: 08a6ec5c1906e805caca968c895c8dd4122afc6a
     subdirectory: kuksa-client
+    baseline: kuksa-python-sdk-baseline
+  - name: kuksa-python-sdk-baseline
+    source: https://github.com/eclipse-kuksa/kuksa-python-sdk
+    ref: 0.5.2
+    revision: a6fc2134959ec010121168e8dd4075821006381f
+    subdirectory: kuksa-client
   - name: kuksa-databroker-image
     source: ghcr.io/eclipse-kuksa/kuksa-databroker
     ref: 0.7.2
