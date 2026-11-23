@@ -1,6 +1,6 @@
 # Checkpoint 2: Risk detection
 
-Status: deterministic scans and live planted Judge checks completed. Final report screenshot and latest CI confirmation remain pending; Checkpoint 3 has not started.
+Status: deterministic scans and live planted Judge checks completed. The pushed Checkpoint 2 changes passed GitHub Actions on Windows and Ubuntu. The final report screenshot remains pending; Checkpoint 3 has not started.
 
 ## Commands
 
@@ -93,7 +93,7 @@ Counts are findings, not distinct packages. No prioritisation scores or reachabi
 7. The inert planted copy resolves with locked Cargo metadata/tree: 497 components and 1,663 relationships. Tests assert source/checksum/name/network/env/decode/workflow anomalies and expected severity. The live Judge marked the Critical new-build-dependency pattern suspicious; its citations resolve to actual evidence.
 8. Recorded-response tests reject invalid citations and severity overrides, enforce at most 5 calls per scan, separate live and recorded caches, and verify cache reuse. The final fresh live planted run used 5 calls and its unchanged cached rerun used 0. The provider/model ping also succeeded. No live API is used in CI.
 9. Integration tests verify finding references and SHA256 of every referenced raw file. Evidence uses repository-relative POSIX paths for application output; cross-drive test output explicitly declares an output-relative base.
-10. Latest full local acceptance run: 74 tests passed (including real target and planted integration checks). Six Semgrep rules passed inside the pinned offline scanner container. Previous branch CI passed on Windows/Ubuntu after the cross-drive correction; latest changes require the final CI run linked in the PR.
+10. Latest full local acceptance run: 74 tests passed (including real target and planted integration checks). Six Semgrep rules passed inside the pinned offline scanner container. GitHub Actions passed on Windows and Ubuntu for the pushed Checkpoint 2 implementation.
 11. This document includes commands, counts, examples and limitations. The required screenshot is PENDING: browser host was unavailable and subsequent workspace app approval timed out. No visual QA pass is claimed.
 
 ## False positives and limitations

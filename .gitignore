@@ -1,12 +1,34 @@
+# Local credentials and environment files
 .env
+.env.*
+!.env.example
+
+# Python environments, bytecode, and test/build output
 .venv/
-workspace/
-out/
-target/
 __pycache__/
-*.log
+*.py[cod]
+*.egg-info/
 .pytest_cache/
 .ruff_cache/
-*.egg-info/
-.tools/
-demo/planted/
+.mypy_cache/
+.tox/
+.nox/
+.coverage
+.coverage.*
+htmlcov/
+build/
+dist/
+
+# Rust build output
+/target/
+
+# Project-generated targets, reports, tools, and demo fixture
+/workspace/
+/out/
+/.tools/
+/demo/planted/
+
+# Local logs and operating-system metadata
+*.log
+.DS_Store
+Thumbs.db
