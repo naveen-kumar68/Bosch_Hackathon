@@ -1,0 +1,13 @@
+[package]
+name = "fixture-app"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+middle = { path = "../middle" }
+
+[dev-dependencies]
+middle = { path = "../middle" }
+
+[build-dependencies]
+middle = { path = "../middle" }

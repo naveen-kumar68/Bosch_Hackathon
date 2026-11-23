@@ -7,6 +7,12 @@ on 2026-11-23. The corresponding acceptance checks will run on Windows; Linux
 portability is checked separately in CI. Docker Desktop's existing Linux engine
 is used only for pulling and inspecting images. Target code is never executed.
 
+The owner selected **all Cargo features** for complete optional-dependency
+coverage. Resolution uses `cargo metadata --format-version 1 --locked
+--all-features`; the SBOM and `cargo tree` oracle use the same feature scope and
+all platforms. Lockfile entries absent even from that resolution remain explicitly
+unreachable inventory records; their build-script/proc-macro flags are unknown.
+
 All project libraries and scanner tools below have OSI-approved licenses. Docker
 Engine/CLI are Apache-2.0; the pre-existing Docker Desktop host application has
 separate proprietary terms and is not redistributed by this project.

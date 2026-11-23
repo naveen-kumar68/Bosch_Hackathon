@@ -1,0 +1,11 @@
+alpha==1.0.0 \
+    --hash=sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+    # via fixture-root (pyproject.toml)
+beta==2.0.0
+    # via fixture-root (pyproject.toml)
+shared==3.0.0
+    # via
+    #   alpha
+    #   beta
+conditional==1.2.0 ; sys_platform == "darwin"
+    # via alpha

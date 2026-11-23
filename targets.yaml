@@ -1,0 +1,19 @@
+targets:
+  - name: kuksa-databroker
+    source: https://github.com/eclipse-kuksa/kuksa-databroker
+    ref: 0.7.2
+    revision: 23914e2bb81fea9168aaad132c1895ba749cfb4a
+  - name: kuksa-val-0.4.1
+    source: https://github.com/eclipse/kuksa.val
+    ref: 0.4.1
+    revision: 6690ca970a2f7dd8245bd00f6b10788eaad755b5
+  - name: kuksa-python-sdk
+    source: https://github.com/eclipse-kuksa/kuksa-python-sdk
+    ref: 0.6.0
+    revision: 08a6ec5c1906e805caca968c895c8dd4122afc6a
+    subdirectory: kuksa-client
+  - name: kuksa-databroker-image
+    source: ghcr.io/eclipse-kuksa/kuksa-databroker
+    ref: 0.7.2
+    revision: sha256:27a134f15e3caf79156c72434123babb26e9b80bd5423434c85061d074f74658
+    kind: image
