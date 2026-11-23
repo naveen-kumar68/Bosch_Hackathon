@@ -5,7 +5,7 @@ import tarfile
 import pytest
 
 from guardian.detect.capability import capability_diff, inspect_sources, verified_extract
-from guardian.detect.registry import index_path, metadata_changes, new_dependencies
+from guardian.detect.registry import Registry, index_path, metadata_changes, new_dependencies
 from guardian.detect.typosquat import candidates
 
 
@@ -21,6 +21,21 @@ def test_provenance_unknown_is_not_regression():
     assert "provenance_regression" in metadata_changes(
         {"trusted_publishing": True}, {"trusted_publishing": False}
     )
+
+
+def test_missing_pypi_metadata_stays_unknown():
+    import json
+    from types import SimpleNamespace
+
+    class HTTP:
+        def get(self, url):
+            return json.dumps({"info": {"requires_dist": None}, "urls": []}).encode(), "captured"
+
+    metadata, _ = Registry(HTTP()).metadata(
+        SimpleNamespace(ecosystem="pypi", name="fixture", version="1")
+    )
+    assert metadata["dependencies_known"] is False
+    assert metadata["publisher"] is None and metadata["trusted_publishing"] is None
 
 
 def test_new_build_dependency_history():

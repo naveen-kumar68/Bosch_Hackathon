@@ -49,8 +49,25 @@ fn look_alike_only_never_called() {
     let _ = std::net::TcpStream::connect("127.0.0.1:9");
     let _ = std::env::vars();
     let base64_blob = "aGFja2F0aG9uIHRlc3QgZml4dHVyZQ==";
-    let _decoded_string = String::from("hackathon test fixture");
+    let _decoded_string = decode_base64(base64_blob);
     let _ = base64_blob;
+}
+fn decode_base64(input: &str) -> String {
+    let alphabet = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+    let mut bits: u32 = 0;
+    let mut count = 0;
+    let mut output = Vec::new();
+    for byte in input.bytes().filter(|b| *b != b'=') {
+        if let Some(value) = alphabet.iter().position(|b| *b == byte) {
+            bits = (bits << 6) | value as u32;
+            count += 6;
+            if count >= 8 {
+                count -= 8;
+                output.push(((bits >> count) & 255) as u8);
+            }
+        }
+    }
+    String::from_utf8(output).unwrap_or_default()
 }
 fn main() {}
 """,

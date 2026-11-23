@@ -72,6 +72,28 @@ def write_reports(output, findings, evidence, vulnerabilities, root, calls):
         ]
         lines += ["- " + " → ".join(p) for p in f.paths] or ["Not a package dependency finding."]
         links = []
+        details = {}
+        if f.type == "vulnerability":
+            details = {
+                key: f.details.get(key)
+                for key in (
+                    "id",
+                    "aliases",
+                    "cvss_score",
+                    "epss",
+                    "epss_percentile",
+                    "kev",
+                    "fixed_versions",
+                    "flags",
+                )
+            }
+            if not details["fixed_versions"]:
+                details["fixed_versions"] = "none reported"
+        location = f.details.get("hit", f.details)
+        if location.get("file"):
+            details["location"] = f"{location['file']}:{location.get('line', '?')}"
+        if details:
+            lines += ["", "Observed details: `" + json.dumps(details, sort_keys=True) + "`"]
         for identifier in f.evidence_ids:
             record = records[identifier]
             path = (
@@ -102,6 +124,7 @@ def write_reports(output, findings, evidence, vulnerabilities, root, calls):
             "<details><summary>Dependency paths</summary><pre>"
             + html.escape("\n".join(" → ".join(p) for p in f.paths))
             + "</pre></details>"
+            "<p>Observed details: " + html.escape(json.dumps(details, sort_keys=True)) + "</p>"
             "<p>Evidence: " + ", ".join(links) + "</p>" + assessment + "</article>"
         )
     write("risk_report.md", "\n".join(lines) + "\n")
@@ -117,6 +140,37 @@ def write_reports(output, findings, evidence, vulnerabilities, root, calls):
         + "</html>",
     )
     with sqlite3.connect(output / "graph.sqlite") as conn:
+        conn.executescript("""
+            CREATE TABLE IF NOT EXISTS risk_nodes (id TEXT PRIMARY KEY, kind TEXT NOT NULL, data TEXT NOT NULL);
+            CREATE TABLE IF NOT EXISTS risk_edges (source TEXT, target TEXT, kind TEXT,
+                PRIMARY KEY(source,target,kind));
+            DELETE FROM risk_edges;
+            DELETE FROM risk_nodes;
+        """)
+        entities = [(r.id, "evidence", r.model_dump_json()) for r in evidence]
+        entities += [(f.finding_id, "finding", f.model_dump_json()) for f in findings]
+        entities += [
+            ("vuln:" + v.component + "#" + v.id, "vulnerability", v.model_dump_json())
+            for v in vulnerabilities
+        ]
+        entities += [
+            (purl, "component_reference", json.dumps({"purl": purl}))
+            for purl in sorted({f.component for f in findings})
+        ]
+        conn.executemany("INSERT INTO risk_nodes VALUES (?,?,?)", entities)
+        relationships = [(f.finding_id, f.component, "concerns") for f in findings]
+        relationships += [
+            (f.finding_id, eid, "supported_by") for f in findings for eid in f.evidence_ids
+        ]
+        relationships += [
+            ("vuln:" + v.component + "#" + v.id, v.component, "affects") for v in vulnerabilities
+        ]
+        relationships += [
+            ("vuln:" + v.component + "#" + v.id, eid, "supported_by")
+            for v in vulnerabilities
+            for eid in v.evidence_ids
+        ]
+        conn.executemany("INSERT OR IGNORE INTO risk_edges VALUES (?,?,?)", relationships)
         for table in ("findings", "vulnerabilities", "risk_evidence"):
             conn.execute(
                 f"CREATE TABLE IF NOT EXISTS {table} (id TEXT PRIMARY KEY, data TEXT NOT NULL)"

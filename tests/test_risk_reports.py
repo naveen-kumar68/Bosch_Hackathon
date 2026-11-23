@@ -33,6 +33,17 @@ def test_reports_and_storage_retain_evidence(tmp_path):
     with sqlite3.connect(output / "graph.sqlite") as conn:
         assert conn.execute("SELECT COUNT(*) FROM findings").fetchone()[0] == 1
         assert conn.execute("SELECT COUNT(*) FROM risk_evidence").fetchone()[0] == 1
+        assert (
+            conn.execute("SELECT kind FROM risk_nodes WHERE id=?", (item.finding_id,)).fetchone()[0]
+            == "finding"
+        )
+        assert (
+            conn.execute(
+                "SELECT target FROM risk_edges WHERE source=? AND kind='supported_by'",
+                (item.finding_id,),
+            ).fetchone()[0]
+            == evidence
+        )
 
 
 def test_new_evidence_paths_are_relative_posix(tmp_path):

@@ -3,6 +3,7 @@
 import hashlib
 import json
 import os
+import tomllib
 from pathlib import Path
 
 import pytest
@@ -39,6 +40,34 @@ def test_real_alias_union_matches_standalone_scanners():
     }
 
 
+def test_diff_counts_reconcile_with_lockfile_sets():
+    def package_sets(target, ref):
+        document = tomllib.loads(
+            (ROOT / "workspace/targets" / f"{target}@{ref}" / "Cargo.lock").read_text(
+                encoding="utf-8"
+            )
+        )
+        return {(p["name"], p["version"]) for p in document["package"]}
+
+    old = package_sets("kuksa-val-0.4.1", "0.4.1")
+    new = package_sets("kuksa-databroker", "0.7.2")
+    old_names, new_names = {p[0] for p in old}, {p[0] for p in new}
+    diff = read_json(ROOT / "out/kuksa-databroker/dependency-diff.json")
+    assert {(p["name"], p["version"]) for p in diff["added"]} == {
+        p for p in new if p[0] not in old_names
+    }
+    assert {(p["name"], p["version"]) for p in diff["removed"]} == {
+        p for p in old if p[0] not in new_names
+    }
+    expected_changed = {
+        name
+        for name in old_names & new_names
+        if {v for n, v in old if n == name} != {v for n, v in new if n == name}
+    }
+    assert {p["name"] for p in diff["changed"]} == expected_changed
+    assert diff["counts"]["changed"] == len(expected_changed)
+
+
 @pytest.mark.parametrize("target", ["kuksa-databroker", "kuksa-python-sdk"])
 def test_real_findings_have_verified_evidence_and_lf(target):
     output = ROOT / "out" / target
@@ -65,3 +94,8 @@ def test_real_findings_have_verified_evidence_and_lf(target):
 def test_python_missing_hash_pins():
     items = read_json(ROOT / "out/kuksa-python-sdk/findings.json")
     assert len([f for f in items if f["type"] == "pin_without_hash"]) == 16
+    scan = ScanResult.model_validate_json(
+        (ROOT / "out/kuksa-python-sdk/scan.json").read_text(encoding="utf-8")
+    )
+    current = {component.purl for component in scan.components}
+    assert all(f["component"] in current for f in items if f["type"] == "guarddog")

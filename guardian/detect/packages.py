@@ -81,7 +81,7 @@ def inspect_packages(scan, previous, http, recorder, root: Path, add):
             )
         if component.ecosystem != "cargo":
 
-            def python_artifact(package, info):
+            def python_artifact(package, info, *, current_purl=component.purl):
                 files = sorted(
                     info["files"],
                     key=lambda file: (file["packagetype"] != "sdist", file["filename"]),
@@ -112,7 +112,7 @@ def inspect_packages(scan, previous, http, recorder, root: Path, add):
                 if any(directory.rglob("setup.py")):
                     semgrep(directory, root / "rules/semgrep", recorder)
                     result, guard_evidence = guarddog(archive, recorder)
-                    if result.get("issues", 0):
+                    if result.get("issues", 0) and package.purl == current_purl:
                         add(
                             "guarddog",
                             package.purl,
@@ -129,7 +129,15 @@ def inspect_packages(scan, previous, http, recorder, root: Path, add):
                 if before
                 else set()
             )
-            for value in metadata.get("dependencies", []):
+            metadata_known = metadata.get("dependencies_known", True) and (
+                before is None or before.get("dependencies_known", True)
+            )
+            if not metadata_known:
+                recorder.note(
+                    "Python per-version dependency metadata unavailable; no empty list inferred",
+                    evidence,
+                )
+            for value in metadata.get("dependencies", []) if metadata_known else []:
                 dependency = Requirement(value)
                 if dependency.name not in previous_deps:
                     add(

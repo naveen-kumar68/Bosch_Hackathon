@@ -69,6 +69,7 @@ class Registry:
             "evidence_ids": [evidence],
             "files": files,
             "dependencies": document["info"].get("requires_dist") or [],
+            "dependencies_known": document["info"].get("requires_dist") is not None,
         }, []
 
 

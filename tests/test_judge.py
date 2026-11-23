@@ -79,3 +79,24 @@ def test_redaction_and_sixty_line_limit():
     redacted = redact("token=" + secret + "\n" + "line\n" * 90)
     assert secret not in redacted
     assert len(redacted.splitlines()) == 60
+
+
+def test_recorded_cache_cannot_masquerade_as_live(tmp_path):
+    configuration = tmp_path / "test.env"
+    configuration.write_text(
+        "LLM_API_KEY=fixture-only\nLLM_BASE_URL=https://example.test/v1\nLLM_MODEL=fixture-model\n"
+    )
+    database = tmp_path / "cache.sqlite"
+    simulated = Judge(
+        database,
+        Recorder(tmp_path / "recorded"),
+        env_file=configuration,
+        complete=lambda _: response(),
+    )
+    assert simulated.assess(finding(), {"valid"}).origin == "recorded_test"
+    live = Judge(database, Recorder(tmp_path / "live"), env_file=configuration)
+    live.request = lambda _: response()
+    assert live.assess(finding(), {"valid"}).origin == "live"
+    assert live.calls == 1
+    live.assess(finding(), {"valid"})
+    assert live.calls == 1

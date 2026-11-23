@@ -99,13 +99,16 @@ class Judge:
             return None
         settings = {k: self.settings.get(k) for k in ("LLM_BASE_URL", "LLM_MODEL")}
         settings["max_judge_calls"] = self.max_calls
+        settings["response_mode"] = "recorded_test" if self.complete else "live"
         key = hashlib.sha256(
             json.dumps([SYSTEM, settings, payload], sort_keys=True).encode()
         ).hexdigest()
         with sqlite3.connect(self.database) as conn:
             row = conn.execute("SELECT response FROM judge_cache WHERE key=?", (key,)).fetchone()
-        if row and json.loads(row[0]).get("judge_failed") == "budget":
-            self.recorder.note("judge_failed: cached call-budget exclusion", finding.evidence_ids)
+        if row and json.loads(row[0]).get("judge_failed"):
+            self.recorder.note(
+                "judge_failed: cached failure or call-budget exclusion", finding.evidence_ids
+            )
             return None
         responses = [row[0]] if row else []
         if (
@@ -168,4 +171,9 @@ class Judge:
             with sqlite3.connect(self.database) as conn:
                 conn.execute("INSERT OR REPLACE INTO judge_cache VALUES (?,?)", (key, response))
             return assessment
+        with sqlite3.connect(self.database) as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO judge_cache VALUES (?,?)",
+                (key, json.dumps({"judge_failed": "response_invalid_or_unavailable"})),
+            )
         return None

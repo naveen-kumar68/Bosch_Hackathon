@@ -45,9 +45,9 @@ def tool_path(name: str) -> str:
 
 
 class Recorder:
-    def __init__(self, output: Path):
+    def __init__(self, output: Path, *, root: Path | None = None):
         self.output = output.resolve()
-        self.root = Path(__file__).resolve().parents[1]
+        self.root = root.resolve() if root else Path(__file__).resolve().parents[1]
         # Windows CI may put temporary output on another volume. Such evidence
         # declares an output-relative base; normal application output is repo-relative.
         try:

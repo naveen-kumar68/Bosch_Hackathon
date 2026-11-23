@@ -4,7 +4,7 @@ from typing import Annotated
 import typer
 
 from guardian.acquire import acquire
-from guardian.config import load_targets
+from guardian.config import contained_path, load_targets
 from guardian.evidence import Recorder
 from guardian.graph.query import paths, reverse_dependencies
 from guardian.graph.store import load
@@ -77,8 +77,9 @@ def finding(identifier: str, target: str = "kuksa-databroker", config: Path = Pa
     import json
     import sqlite3
 
-    target_config(target, config)
-    database = config.resolve().parent / "out" / target / "graph.sqlite"
+    database = contained_path(config.resolve().parent / "out", target) / "graph.sqlite"
+    if not database.is_file():
+        raise typer.BadParameter("No completed finding store for this target")
     with sqlite3.connect(f"file:{database.as_posix()}?mode=ro", uri=True) as connection:
         row = connection.execute("SELECT data FROM findings WHERE id=?", (identifier,)).fetchone()
         if not row:
