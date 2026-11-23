@@ -38,3 +38,39 @@ Release origins:
 
 Additional verified tools: SQLite 3.50.4; GitHub CLI 2.95.0.
 Library imports, `pytest --version` (9.2.0), and `ruff --version` (0.17.6) passed.
+
+## Checkpoint 2 tools (installation checks in progress)
+
+| Tool | Pin | Verification status |
+|---|---|---|
+| OSV-Scanner | 2.7.1 | Native Windows version check passed; release checksum matched |
+| Grype | 0.122.1 | Native Windows version check passed; release checksum matched; DB updating |
+| zizmor | 1.33.1 | Native Windows version check passed |
+| cargo-audit | 0.23.0 | Installed with --locked; `cargo-audit audit --version` passed |
+| GuardDog | 3.2.0 | Offline container help passed; cache refresh unavailable under network isolation |
+| Semgrep CE | 1.186.0 | Offline container version check returned 1.186.0 |
+| cvss | 3.6 | Python import passed |
+| rapidfuzz | 3.14.6 | Python import passed |
+| detect-secrets | 1.5.0 | Version check and import passed |
+| httpx | 0.28.1 | Python import passed |
+| openai | 3.57.0 | Python import passed; no API call made |
+| python-dotenv | 1.2.4 | Python import passed |
+| pip-audit | 2.10.1 | Version check passed |
+
+GuardDog immutable scanner image:
+`ghcr.io/datadog/guarddog@sha256:3dbc783f65f508b95222101cb2cd84d1d5f3e3675e42d6f1329bb9b8a99c8998`.
+
+Semgrep immutable scanner image:
+`semgrep/semgrep@sha256:6e1b04340e60e910fbb4ddbf3c857ab0918f064417ad5ac530014ccb3cf8c8f1`.
+
+| Downloaded artifact | SHA256 |
+|---|---|
+| osv-scanner_windows_amd64.exe | `7121dcf420aefbbf89a7f0050c4d3094e079ff93afd334dfc96f16b02ec85800` |
+| grype_0.122.1_windows_amd64.zip | `24e19d6378782d2da343b80c632e342bcdd3bd1bf44e415a0ff81cf85ce1043a` |
+| zizmor-x86_64-pc-windows-msvc.zip | `f02ebeedf651da468b4de19d31f0609050af74e11be41dc46d82e355cf44f68b` |
+
+OSV and Grype hashes were checked against release checksum assets; zizmor's hash
+is a local reproducibility record, not independently authenticated provenance.
+
+OSV scans must explicitly disable Rust call analysis; its own help states that
+enabling Rust call analysis runs build scripts. Use lockfiles and `--no-resolve`.

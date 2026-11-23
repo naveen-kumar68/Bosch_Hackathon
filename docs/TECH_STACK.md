@@ -66,3 +66,35 @@ Installed package metadata supplied Python license/version checks. Official sour
 Cargo configuration and toolchain override files in acquired repositories must
 not control host execution. The scanner must reject unsafe command overrides
 before invoking resolution tools. `--no-build` is mandatory for Python fallback.
+
+## Checkpoint 2 additions (verification in progress)
+
+The owner approved pinned scanner containers on 2026-11-23. This exception is
+limited to trusted scanner images; target packages remain read-only data and are
+never built or run. GuardDog officially supports Windows through Docker only.
+
+| Tool | Version | Licence | Used for | Why chosen | Alternative rejected (and why) |
+|---|---|---|---|---|---|
+| OSV-Scanner | 2.7.1 | Apache-2.0 | Cross-ecosystem advisory matching | Common aliases across Cargo/PyPI | Separate custom advisory clients: duplicated matching logic |
+| cargo-audit | 0.23.0 | MIT OR Apache-2.0 | RustSec warnings and advisories | Native unmaintained/unsound/yanked signals | OSV alone: different warning coverage |
+| pip-audit | 2.10.1 | Apache-2.0 | Python advisory cross-check | PyPA-maintained independent scanner | pip install + inspection: executes target installation |
+| Grype | 0.122.1 | Apache-2.0 | SBOM vulnerability scan | Reads both generated and shipped inventories | Trivy: additional overlapping integration |
+| cvss | 3.6 | LGPL-3.0-or-later | Vector scoring | Compute scores from structured vectors | Free-text severity: cannot reproduce score |
+| rapidfuzz | 3.14.6 | MIT | Name similarity | Fast Damerau-Levenshtein comparisons | Handwritten distance: unnecessary algorithm maintenance |
+| detect-secrets | 1.5.0 | Apache-2.0 | Snippet secret detection | Established detector before Judge transmission | Regex-only redaction: narrower coverage |
+| httpx | 0.28.1 | BSD-3-Clause | Cached public metadata requests | Explicit timeouts and transport injection | urllib alone: more transport/test plumbing |
+| openai | 3.57.0 | Apache-2.0 | Configurable compatible Judge client | Provider endpoint configurable | LiteLLM: extra abstraction |
+| python-dotenv | 1.2.4 | BSD-3-Clause | Local provider configuration | Keeps secrets outside source control | Hardcoded settings: unsafe and inflexible |
+| zizmor | 1.33.1 | MIT | Workflow SARIF findings | Dedicated GitHub Actions analysis | Custom rules alone: incomplete workflow semantics |
+| GuardDog | 3.2.0 | Apache-2.0 | Python static heuristics | Existing open source package rules | New custom Python engine: duplicated heuristics |
+| Semgrep CE | 1.186.0 | LGPL-2.1-only | Rust/Python capability patterns | Structured static matches with rule tests | Regex alone: less syntax awareness |
+
+Metadata services: crates.io API/sparse index, PyPI JSON, FIRST EPSS and CISA KEV.
+These are external data sources rather than vendored software dependencies.
+Responses must carry cache timestamps and raw evidence hashes; unknown fields
+must remain unknown rather than being interpreted as negative facts.
+
+Version/import/help checks passed for all selected tools, including both scanner
+containers and cargo-audit. Grype database initialization is still in progress;
+live Judge verification requires the owner's `.env` configuration. Those are
+explicit runtime prerequisites, not successful acceptance results.
