@@ -1,0 +1,34 @@
+rules:
+  checksum_changed: {severity: critical, rationale: Identical package version has conflicting integrity digests.}
+  registry_checksum_missing: {severity: high, rationale: Registry artifact integrity cannot be verified.}
+  source_changed: {severity: high, rationale: Dependency trust origin changed.}
+  new_build_dep_network: {severity: critical, rationale: New build dependency gained network or process capability.}
+  typosquat_added: {severity: high, rationale: Newly introduced package resembles an established name.}
+  typosquat_candidate: {severity: medium, rationale: Heuristic name similarity requires review.}
+  provenance_regression: {severity: high, rationale: Previously observed trusted publishing evidence is absent.}
+  recent_release: {severity: medium, rationale: Release is less than seven days old.}
+  publisher_changed: {severity: medium, rationale: Publisher identity differs between versions.}
+  yanked: {severity: medium, rationale: Registry marks the version as withdrawn.}
+  unmaintained: {severity: medium, rationale: RustSec reports that maintenance has stopped.}
+  unsound: {severity: high, rationale: RustSec reports unsound behavior.}
+  dependency_added: {severity: info, rationale: Package is newly present in the inventory.}
+  dependency_removed: {severity: info, rationale: Package is absent from the new inventory.}
+  dependency_upgraded: {severity: info, rationale: Package version increased.}
+  dependency_downgraded: {severity: medium, rationale: Package version decreased and needs review.}
+  new_direct_dependency: {severity: low, rationale: Root now directly depends on this package.}
+  new_dependency: {severity: low, rationale: A package version introduced a new dependency.}
+  new_build_dependency: {severity: medium, rationale: A package version introduced a build dependency.}
+  capability_added: {severity: medium, rationale: Static analysis found a newly present capability.}
+  guarddog: {severity: medium, rationale: Static package heuristic requires contextual review.}
+  action_unpinned: {severity: medium, rationale: Action reference is not a full immutable commit SHA.}
+  cargo_install_unlocked: {severity: medium, rationale: Tool installation lacks a lockfile or exact version.}
+  pip_git_mutable: {severity: medium, rationale: Git dependency installation uses a mutable reference.}
+  curl_pipe_shell: {severity: high, rationale: Workflow pipes network content into a shell.}
+  workflow_permissions: {severity: medium, rationale: Workflow permissions are implicit or excessively broad.}
+  untrusted_checkout: {severity: high, rationale: Privileged workflow checks out pull request code.}
+  mutable_base_image: {severity: medium, rationale: Container base is not pinned to an immutable digest.}
+  unstable_base_image: {severity: medium, rationale: Container base uses an unstable or explicitly unsupported tag.}
+  sbom_drift: {severity: medium, rationale: Independently observed inventories disagree.}
+  pin_without_hash: {severity: low, rationale: Python pin does not constrain artifact integrity.}
+  nondefault_index: {severity: medium, rationale: Python dependency uses an additional or nondefault registry.}
+  vulnerability: {severity: medium, rationale: Advisory exists but no usable CVSS vector was supplied.}
