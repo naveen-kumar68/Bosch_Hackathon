@@ -12,7 +12,8 @@ def test_evidence_hash_and_timestamp(sample_scan, tmp_path):
     assert record.timestamp.utcoffset().total_seconds() == 0
     from pathlib import Path
 
-    raw = Path(__file__).resolve().parents[1] / record.raw_path
+    base = Path(__file__).resolve().parents[1] if record.path_base == "repository" else tmp_path
+    raw = base / record.raw_path
     assert hashlib.sha256(raw.read_bytes()).hexdigest() == record.sha256
     raw.write_bytes(b"tampered")
     with pytest.raises(ValueError, match="hash mismatch"):

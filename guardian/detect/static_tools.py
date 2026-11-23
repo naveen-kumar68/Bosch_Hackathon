@@ -72,7 +72,13 @@ def semgrep(directory: Path, rules: Path, recorder, *, proc_macro=False):
 def guarddog(archive: Path, recorder):
     command = container_command(GUARDDOG, [(archive.parent, "/artifacts")])
     command += ["pypi", "scan", "/artifacts/" + archive.name, "--output-format", "json"]
-    raw, evidence, status = recorder.run(command, check=False, timeout=180)
-    if status not in (0, 1):
+    try:
+        raw, evidence, status = recorder.run(command, check=False, timeout=180)
+    except RuntimeError:
+        name = command[command.index("--name") + 1]
+        recorder.run(["docker", "rm", "--force", name], check=False)
+        raise
+    # No --exit-non-zero-on-finding is supplied, so a nonzero status is a tool failure.
+    if status != 0:
         raise RuntimeError(f"GuardDog failed; evidence {evidence}")
     return json.loads(raw), evidence

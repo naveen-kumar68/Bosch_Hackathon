@@ -48,6 +48,13 @@ class Recorder:
     def __init__(self, output: Path):
         self.output = output.resolve()
         self.root = Path(__file__).resolve().parents[1]
+        # Windows CI may put temporary output on another volume. Such evidence
+        # declares an output-relative base; normal application output is repo-relative.
+        try:
+            os.path.relpath(self.output, self.root)
+            self.reference_root, self.path_base = self.root, "repository"
+        except ValueError:
+            self.reference_root, self.path_base = self.output, "output"
         self.raw = self.output / "raw"
         self.raw.mkdir(parents=True, exist_ok=True)
         self.records: list[Evidence] = []
@@ -61,13 +68,13 @@ class Recorder:
             raw = (base / record.raw_path).resolve()
             cwd = Path(record.cwd)
             if not cwd.is_absolute():
-                cwd = self.root / cwd
+                cwd = base / cwd
             self.records.append(
                 record.model_copy(
                     update={
-                        "raw_path": Path(os.path.relpath(raw, self.root)).as_posix(),
-                        "path_base": "repository",
-                        "cwd": Path(os.path.relpath(cwd, self.root)).as_posix(),
+                        "raw_path": Path(os.path.relpath(raw, self.reference_root)).as_posix(),
+                        "path_base": self.path_base,
+                        "cwd": Path(os.path.relpath(cwd, self.reference_root)).as_posix(),
                         "command": [self.display_argument(arg) for arg in record.command],
                     }
                 )
@@ -89,7 +96,7 @@ class Recorder:
             tool,
             version,
             [self.display_argument(arg) for arg in command],
-            Path(os.path.relpath(cwd.resolve(), self.root)).as_posix(),
+            Path(os.path.relpath(cwd.resolve(), self.reference_root)).as_posix(),
             description,
             returncode,
             digest,
@@ -107,9 +114,9 @@ class Recorder:
                 command=[self.display_argument(arg) for arg in command],
                 timestamp=datetime.now(UTC),
                 sha256=digest,
-                raw_path=Path(os.path.relpath(path, self.root)).as_posix(),
-                path_base="repository",
-                cwd=Path(os.path.relpath(cwd.resolve(), self.root)).as_posix(),
+                raw_path=Path(os.path.relpath(path, self.reference_root)).as_posix(),
+                path_base=self.path_base,
+                cwd=Path(os.path.relpath(cwd.resolve(), self.reference_root)).as_posix(),
                 returncode=returncode,
                 description=description,
             )
@@ -124,7 +131,10 @@ class Recorder:
         if ":\\" in value and "=" not in value:
             path = Path(value)
             if path.is_absolute():
-                return Path(os.path.relpath(path, self.root)).as_posix()
+                try:
+                    return Path(os.path.relpath(path, self.root)).as_posix()
+                except ValueError:
+                    return path.name  # External tool on another drive, identified by tool/version.
         return value.replace("\\", "/")
 
     def file(self, path: Path, description: str = "") -> str:

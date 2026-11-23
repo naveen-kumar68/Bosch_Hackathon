@@ -43,7 +43,9 @@ capabilities, Critical new-build capability correlation and a tag-pinned action.
 A full planted report and live Judge result are still pending.
 
 Expanded registry analysis timed out twice at 60 seconds. The owner approved a
-180-second timeout and a cache-backed retry, currently in progress. The owner
+180-second timeout and a cache-backed retry; that attempt subsequently stopped
+on DNS resolution failure (`getaddrinfo failed`). Rust registry requests are
+paused with cached observations retained. The owner
 also approved using the captured PyPI SHA256 when a pin lacks hashes; the missing
 lockfile-hash finding remains separate. Partial metadata/artifacts are retained
 and are not presented as a complete scan. Prior completed report evidence is

@@ -1,4 +1,5 @@
 import json
+import os
 import sqlite3
 
 from guardian.detect.models import Finding
@@ -38,6 +39,10 @@ def test_new_evidence_paths_are_relative_posix(tmp_path):
     recorder = Recorder(tmp_path)
     recorder.note("test")
     record = recorder.records[0]
-    assert record.path_base == "repository"
+    same_drive = (
+        os.path.splitdrive(str(tmp_path))[0].lower()
+        == os.path.splitdrive(str(recorder.root))[0].lower()
+    )
+    assert record.path_base == ("repository" if same_drive else "output")
     assert "\\" not in record.raw_path and "\\" not in record.cwd
     assert not record.raw_path.startswith("/")
