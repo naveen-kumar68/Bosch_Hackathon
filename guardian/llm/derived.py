@@ -14,7 +14,10 @@ INJECTION_MARKERS = re.compile(
     r"|(?:system|assistant)\s*(?:prompt|message)\s*:"
     r"|\bAI\s+(?:reviewer|scanner|assistant)\b"
     r"|\bnote\s+to\s+(?:the\s+)?(?:ai|llm|model|reviewer)\b"
-    r"|[\"']verdict[\"']\s*:",
+    r"|[\"']verdict[\"']\s*:"
+    r"|(?:^|
+)\W*(?:assistant|ai|llm|model|reviewer)\s*:"
+    r"|report\s+success",
     re.IGNORECASE,
 )
 

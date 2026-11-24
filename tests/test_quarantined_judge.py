@@ -181,3 +181,13 @@ def test_benign_judgement_derives_nothing(tmp_path):
     f = finding()
     judge, _ = judge_for(tmp_path, fooled, [f])
     assert findings_from_judge(judge.assess([(f, "fn main() {}")])) == []
+
+
+@pytest.mark.parametrize("name", ["inject_01_ignore", "inject_02_fake_json", "inject_03_curl"])
+def test_module4_injection_fixtures(tmp_path, name):
+    root = Path(__file__).parents[1] / "fixtures" / "inject" / f"{name}.rs"
+    f = finding(severity="medium")
+    judge, _ = judge_for(tmp_path, fooled, [f])
+    (claim,) = judge.assess([(f, root.read_text(encoding="utf-8"))])
+    assert claim.flags["mentions_instructions_to_ai"] is True
+    assert [d.severity for d in findings_from_judge([claim])] == ["high"]
