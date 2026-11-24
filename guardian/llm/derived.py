@@ -15,8 +15,7 @@ INJECTION_MARKERS = re.compile(
     r"|\bAI\s+(?:reviewer|scanner|assistant)\b"
     r"|\bnote\s+to\s+(?:the\s+)?(?:ai|llm|model|reviewer)\b"
     r"|[\"']verdict[\"']\s*:"
-    r"|(?:^|
-)\W*(?:assistant|ai|llm|model|reviewer)\s*:"
+    r"|(?:^|\n)\W*(?:assistant|ai|llm|model|reviewer)\s*:"
     r"|report\s+success",
     re.IGNORECASE,
 )
