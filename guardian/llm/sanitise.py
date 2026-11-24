@@ -53,7 +53,10 @@ def sanitise(value, max_snippet_chars: int = 4096):
         for key, item in value.items():
             if not isinstance(key, str):
                 raise TypeError("Prompt object keys must be strings")
-            if key in {"name", "package", "package_name"} and isinstance(item, str):
+            if (
+                key in {"name", "package", "package_name"}
+                or (key == "value" and value.get("type") == "package")
+            ) and isinstance(item, str):
                 result[key] = package_name(item)
             elif key in {"snippet", "code"} and isinstance(item, str):
                 result[key] = snippet(item, max_snippet_chars)

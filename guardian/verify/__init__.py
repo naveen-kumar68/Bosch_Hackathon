@@ -1,5 +1,6 @@
-from guardian.verify.check import check
-from guardian.verify.facts import FactsIndex
-from guardian.verify.models import ALLOWED_FLAGS, AIClaim, FactUsed
+"""Deterministic checks over explicitly indexed evidence facts."""
 
-__all__ = ["ALLOWED_FLAGS", "AIClaim", "FactUsed", "FactsIndex", "check"]
+from guardian.verify.api import check, configure
+from guardian.verify.facts import FactIndex, build
+
+__all__ = ["FactIndex", "build", "check", "configure"]

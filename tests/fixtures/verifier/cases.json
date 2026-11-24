@@ -1,268 +1,79 @@
-[
-  {
-    "name": "correct_explain",
-    "expect": "pass",
-    "claim": {
-      "kind": "explain",
-      "text": "`leafcrate` `1.2.3` is affected by RUSTSEC-2024-0001 with CVSS 7.5; fixed in `1.2.4`.",
-      "facts_used": [
-        {
-          "type": "package",
-          "value": "leafcrate",
-          "evidence_id": "EV-001"
-        },
-        {
-          "type": "version",
-          "value": "1.2.3",
-          "evidence_id": "EV-001"
-        },
-        {
-          "type": "advisory_id",
-          "value": "RUSTSEC-2024-0001",
-          "evidence_id": "EV-001"
-        },
-        {
-          "type": "score",
-          "value": "7.5",
-          "evidence_id": "EV-001"
-        },
-        {
-          "type": "fixed_version",
-          "value": "1.2.4",
-          "evidence_id": "EV-001"
-        }
-      ],
-      "cited_evidence_ids": [
-        "EV-001"
-      ]
-    }
-  },
-  {
-    "name": "correct_plan",
-    "expect": "pass",
-    "claim": {
-      "kind": "plan",
-      "text": "Choose `O-aaaaaaaa`: raise `leafcrate` to `1.2.4`.",
-      "chosen_option_id": "O-aaaaaaaa",
-      "facts_used": [
-        {
-          "type": "option_id",
-          "value": "O-aaaaaaaa",
-          "evidence_id": "EV-021"
-        },
-        {
-          "type": "package",
-          "value": "leafcrate",
-          "evidence_id": "EV-021"
-        },
-        {
-          "type": "version",
-          "value": "1.2.4",
-          "evidence_id": "EV-021"
-        }
-      ],
-      "cited_evidence_ids": [
-        "EV-021"
-      ]
-    }
-  },
-  {
-    "name": "correct_path_and_alias",
-    "expect": "pass",
-    "claim": {
-      "kind": "explain",
-      "text": "Reached via app → middle → leafcrate; alias CVE-2024-11111 and EPSS 0.12.",
-      "facts_used": [
-        {
-          "type": "path",
-          "value": "app → middle → leafcrate",
-          "evidence_id": "EV-001"
-        },
-        {
-          "type": "advisory_id",
-          "value": "CVE-2024-11111",
-          "evidence_id": "EV-001"
-        },
-        {
-          "type": "score",
-          "value": "0.12",
-          "evidence_id": "EV-001"
-        }
-      ],
-      "cited_evidence_ids": [
-        "EV-001"
-      ]
-    }
-  },
-  {
-    "name": "fake_cve",
-    "expect": "fail",
-    "claim": {
-      "kind": "explain",
-      "text": "Affected by CVE-2099-99999.",
-      "facts_used": [
-        {
-          "type": "advisory_id",
-          "value": "CVE-2099-99999",
-          "evidence_id": "EV-001"
-        }
-      ],
-      "cited_evidence_ids": [
-        "EV-001"
-      ]
-    },
-    "error": "EV-001 does not support advisory_id CVE-2099-99999"
-  },
-  {
-    "name": "wrong_fix_version",
-    "expect": "fail",
-    "claim": {
-      "kind": "explain",
-      "text": "Fixed in `1.9.0`.",
-      "facts_used": [
-        {
-          "type": "fixed_version",
-          "value": "1.9.0",
-          "evidence_id": "EV-001"
-        }
-      ],
-      "cited_evidence_ids": [
-        "EV-001"
-      ]
-    },
-    "error": "EV-001 does not support fixed_version 1.9.0"
-  },
-  {
-    "name": "invented_package",
-    "expect": "fail",
-    "claim": {
-      "kind": "explain",
-      "text": "Replace it with `totally-made-up`.",
-      "facts_used": [
-        {
-          "type": "package",
-          "value": "totally-made-up",
-          "evidence_id": "EV-001"
-        }
-      ],
-      "cited_evidence_ids": [
-        "EV-001"
-      ]
-    },
-    "error": "unknown package totally-made-up"
-  },
-  {
-    "name": "wrong_path",
-    "expect": "fail",
-    "claim": {
-      "kind": "explain",
-      "text": "Reached via app → leafcrate.",
-      "facts_used": [
-        {
-          "type": "path",
-          "value": "app → leafcrate",
-          "evidence_id": "EV-001"
-        }
-      ],
-      "cited_evidence_ids": [
-        "EV-001"
-      ]
-    },
-    "error": "EV-001 does not support path app → leafcrate"
-  },
-  {
-    "name": "uncited_number",
-    "expect": "fail",
-    "claim": {
-      "kind": "explain",
-      "text": "CVSS is 9.8 and fixed in `1.2.4`.",
-      "facts_used": [
-        {
-          "type": "fixed_version",
-          "value": "1.2.4",
-          "evidence_id": "EV-001"
-        }
-      ],
-      "cited_evidence_ids": [
-        "EV-001"
-      ]
-    },
-    "error": "unlisted fact 9.8"
-  },
-  {
-    "name": "unknown_evidence",
-    "expect": "fail",
-    "claim": {
-      "kind": "explain",
-      "text": "See evidence.",
-      "facts_used": [],
-      "cited_evidence_ids": [
-        "EV-999"
-      ]
-    },
-    "error": "unknown evidence EV-999"
-  },
-  {
-    "name": "unvetted_option",
-    "expect": "fail",
-    "claim": {
-      "kind": "plan",
-      "text": "Choose `O-bbbbbbbb`.",
-      "chosen_option_id": "O-bbbbbbbb",
-      "facts_used": [
-        {
-          "type": "option_id",
-          "value": "O-bbbbbbbb",
-          "evidence_id": "EV-021"
-        }
-      ],
-      "cited_evidence_ids": [
-        "EV-021"
-      ]
-    },
-    "error": "option O-bbbbbbbb is not vetted (vetting=rejected)"
-  },
-  {
-    "name": "unknown_flag",
-    "expect": "fail",
-    "claim": {
-      "kind": "judge",
-      "text": "Looks odd.",
-      "flags": {
-        "is_totally_safe": true
-      },
-      "facts_used": [],
-      "cited_evidence_ids": [
-        "EV-030"
-      ]
-    },
-    "error": "unknown flag is_totally_safe"
-  },
-  {
-    "name": "unlisted_version_in_text",
-    "expect": "fail",
-    "claim": {
-      "kind": "explain",
-      "text": "Upgrade to 1.2.4 now.",
-      "facts_used": [],
-      "cited_evidence_ids": [
-        "EV-001"
-      ]
-    },
-    "error": "unlisted fact 1.2.4"
-  },
-  {
-    "name": "unknown_option_id",
-    "expect": "fail",
-    "claim": {
-      "kind": "plan",
-      "text": "Choose it.",
-      "chosen_option_id": "O-deadbeef",
-      "facts_used": [],
-      "cited_evidence_ids": [
-        "EV-021"
-      ]
-    },
-    "error": "unknown option O-deadbeef"
-  }
-]
+{
+  "_note": "# TODO(Module 4): replace. Provisional Module 2 verifier fixtures.",
+  "ledger": [
+    {"id":"EV-001","facts":[
+      {"type":"package","value":"safe-crate"},
+      {"type":"version","value":"1.2.3"},
+      {"type":"purl","value":"pkg:cargo/safe-crate@1.2.3"},
+      {"type":"advisory_id","value":"CVE-2026-12345"},
+      {"type":"advisory_id","value":"GHSA-abcd-1234-5678"},
+      {"type":"score","value":8.2},
+      {"type":"path","value":"root → safe-crate"}
+    ]},
+    {"id":"EV-002","facts":[
+      {"type":"fixed_version","value":"1.2.4"},
+      {"type":"package","value":"safe-crate"},
+      {"type":"purl","value":"pkg:cargo/safe-crate@1.2.4"}
+    ]},
+    {"id":"EV-003","facts":[{"type":"flag","value":"runs_network"}]}
+  ],
+  "findings":[{"component":"pkg:cargo/safe-crate@1.2.3","evidence_ids":["EV-001"]}],
+  "options":[
+    {"option_id":"O-00000001","kind":"upgrade","vetting":"passed","evidence_ids":["EV-002"]},
+    {"option_id":"O-00000002","kind":"upgrade","vetting":"rejected","evidence_ids":["EV-002"]},
+    {"option_id":"O-00000003","kind":"escalate","vetting":null,"evidence_ids":["EV-001"]}
+  ],
+  "cases":[
+    {"name":"correct_advisory","valid":true,"claim":{
+      "kind":"explain","summary":"`safe-crate@1.2.3` has CVE-2026-12345 with CVSS 8.2.",
+      "facts_used":[{"type":"package","value":"safe-crate","evidence_id":"EV-001"},{"type":"version","value":"1.2.3","evidence_id":"EV-001"},{"type":"advisory_id","value":"CVE-2026-12345","evidence_id":"EV-001"},{"type":"score","value":8.2,"evidence_id":"EV-001"}],
+      "cited_evidence_ids":["EV-001"]
+    }},
+    {"name":"correct_plan","valid":true,"claim":{
+      "kind":"plan","chosen_option_id":"O-00000001","rationale":"Choose O-00000001 with fixed version `1.2.4`.",
+      "facts_used":[{"type":"option_id","value":"O-00000001","evidence_id":"EV-002"},{"type":"fixed_version","value":"1.2.4","evidence_id":"EV-002"}],
+      "cited_evidence_ids":["EV-002"]
+    }},
+    {"name":"correct_path","valid":true,"claim":{
+      "kind":"brief","summary":"Dependency path: `root → safe-crate`.",
+      "facts_used":[{"type":"path","value":"root → safe-crate","evidence_id":"EV-001"}],
+      "cited_evidence_ids":["EV-001"]
+    }},
+    {"name":"fake_cve","valid":false,"error":"EV-001 does not support advisory_id CVE-2026-99999","claim":{
+      "kind":"explain","summary":"CVE-2026-99999 needs review.",
+      "facts_used":[{"type":"advisory_id","value":"CVE-2026-99999","evidence_id":"EV-001"}],"cited_evidence_ids":["EV-001"]
+    }},
+    {"name":"wrong_fixed_version","valid":false,"error":"EV-002 does not support fixed_version 9.9.9","claim":{
+      "kind":"plan","chosen_option_id":"O-00000001","rationale":"Use `9.9.9`.",
+      "facts_used":[{"type":"fixed_version","value":"9.9.9","evidence_id":"EV-002"},{"type":"option_id","value":"O-00000001","evidence_id":"EV-002"}],"cited_evidence_ids":["EV-002"]
+    }},
+    {"name":"invented_package","valid":false,"error":"Unknown package imaginary-crate","claim":{
+      "kind":"judge","rationale":"Inspect `imaginary-crate`.",
+      "facts_used":[{"type":"package","value":"imaginary-crate","evidence_id":"EV-001"}],"cited_evidence_ids":["EV-001"]
+    }},
+    {"name":"wrong_path","valid":false,"error":"EV-001 does not support path root → imaginary-crate","claim":{
+      "kind":"brief","summary":"Path: `root → imaginary-crate`.",
+      "facts_used":[{"type":"path","value":"root → imaginary-crate","evidence_id":"EV-001"}],"cited_evidence_ids":["EV-001"]
+    }},
+    {"name":"uncited_number","valid":false,"error":"Unlisted fact 9.9","claim":{
+      "kind":"explain","summary":"CVSS is 9.9.","facts_used":[],"cited_evidence_ids":["EV-001"]
+    }},
+    {"name":"unknown_evidence","valid":false,"error":"Unknown evidence ID EV-999","claim":{
+      "kind":"explain","summary":"Needs review.","facts_used":[],"cited_evidence_ids":["EV-999"]
+    }},
+    {"name":"unvetted_option","valid":false,"error":"Option O-00000002 is not vetted: rejected","claim":{
+      "kind":"plan","chosen_option_id":"O-00000002","rationale":"Choose O-00000002.",
+      "facts_used":[{"type":"option_id","value":"O-00000002","evidence_id":"EV-002"}],"cited_evidence_ids":["EV-002"]
+    }},
+    {"name":"unknown_flag","valid":false,"error":"Unknown Judge flag delete_files","claim":{
+      "kind":"judge","rationale":"Needs review.","flags":{"delete_files":true},"facts_used":[],"cited_evidence_ids":["EV-003"]
+    }},
+    {"name":"fact_evidence_not_cited","valid":false,"error":"Fact evidence ID EV-002 is not cited","claim":{
+      "kind":"explain","summary":"Fixed version is `1.2.4`.",
+      "facts_used":[{"type":"fixed_version","value":"1.2.4","evidence_id":"EV-002"}],"cited_evidence_ids":["EV-001"]
+    }},
+    {"name":"unlisted_known_version","valid":false,"error":"Unlisted fact 1.2.4","claim":{
+      "kind":"explain","summary":"Fixed version is `1.2.4`.","facts_used":[],"cited_evidence_ids":["EV-002"]
+    }}
+  ]
+}

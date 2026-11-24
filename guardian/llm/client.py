@@ -35,11 +35,13 @@ def create_completion_client(database: Path, *, env_file=Path(".env"), config_fi
     return CompletionClient(database, providers, config)
 
 
-def complete(role, messages, schema, budget_key):
+def complete(role, messages, schema, budget_key, *, previous_errors=None):
     """Common role entry point. Configuration is explicit and never triggers a request."""
     if _completion_client is None:
         raise ProviderUnavailable("LLM client is not configured; use facts only")
-    return _completion_client.complete(role, messages, schema, budget_key)
+    return _completion_client.complete(
+        role, messages, schema, budget_key, previous_errors=previous_errors
+    )
 
 
 def create_client(env_file=Path(".env")):

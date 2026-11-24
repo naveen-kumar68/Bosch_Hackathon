@@ -1,64 +1,103 @@
-"""Remediation inputs and outputs. Adapt to guardian/contracts when they land."""
+"""Provisional Module 2 contracts; no shared contracts have landed yet."""
 
-import hashlib
-import json
-from typing import Literal
+from pathlib import PurePosixPath
+from typing import Annotated, Literal
 
-from pydantic import Field
+from packageurl import PackageURL
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from guardian.models import Model
-
-
-class Edge(Model):
-    """parent (at parent_version) requires child with `req`. is_root: parent is the scanned project."""
-
-    parent: str
-    parent_version: str | None = None
-    child: str
-    req: str = ""
-    is_root: bool = False
+EvidenceId = Annotated[str, Field(min_length=1)]
 
 
-class PrioritisedFinding(Model):
-    finding_id: str
-    type: str
-    ecosystem: Literal["cargo", "pypi"] = "cargo"
-    package: str
+class Model(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+
+
+class Constraint(Model):
+    requirement: str
+    evidence_ids: list[EvidenceId] = Field(min_length=1)
+
+
+class Boundary(Model):
     version: str
-    fixed_versions: list[str] = Field(default_factory=list)
-    advisory_ids: list[str] = Field(default_factory=list)
-    evidence_ids: list[str] = Field(min_length=1)
-    edges: list[Edge] = Field(default_factory=list)
-    baseline_version: str | None = None
-    baseline_evidence_ids: list[str] = Field(default_factory=list)
-    dev_only: bool = False
-    imported: bool = True
-    manifest: str | None = None
-    severity: str | None = None
-    priority: str | None = None
+    evidence_ids: list[EvidenceId] = Field(min_length=1)
+
+
+class Location(Model):
+    file: str
+
+    @field_validator("file")
+    @classmethod
+    def relative_posix(cls, value):
+        path = PurePosixPath(value)
+        if (
+            not value
+            or "\\" in value
+            or ":" in value
+            or path.is_absolute()
+            or ".." in path.parts
+            or value != path.as_posix()
+            or value == "."
+        ):
+            raise ValueError("Location must be a repository-relative POSIX file path")
+        return value
+
+
+class Parent(Model):
+    package: str
+    current_version: str
+    requirement: str
+    constraints: list[Constraint] = Field(default_factory=list)
+    location: Location
+    evidence_ids: list[EvidenceId] = Field(min_length=1)
+
+
+class RemediationRequest(Model):
+    finding_id: str = Field(min_length=1)
+    component: str
+    evidence_ids: list[EvidenceId] = Field(min_length=1)
+    fixed_versions: list[Boundary] = Field(default_factory=list)
+    constraints: list[Constraint] = Field(default_factory=list)
+    parents: list[Parent] = Field(default_factory=list)
+    location: Location
+    baseline: Boundary | None = None
+    python_version: str | None = None
+
+    @field_validator("component")
+    @classmethod
+    def supported_purl(cls, value):
+        parsed = PackageURL.from_string(value)
+        if parsed.type not in {"cargo", "pypi"} or not parsed.version or parsed.namespace:
+            raise ValueError("A versioned Cargo or PyPI package PURL is required")
+        return parsed.to_string()
+
+
+class Change(Model):
+    file: str
+    package: str
+    from_version: str
+    to_version: str
+    operation: Literal["lock_update", "replace_pin"]
+
+
+class VettingCheck(Model):
+    check: str
+    component: str
+    status: Literal["passed", "rejected"]
+    reasons: list[str] = Field(min_length=1)
+    evidence_ids: list[EvidenceId] = Field(min_length=1)
+    flags: list[str] = Field(default_factory=list)
 
 
 class FixOption(Model):
-    option_id: str
-    kind: Literal["upgrade", "pin", "remove", "replace", "escalate"]
-    ecosystem: str
-    package: str
-    from_version: str | None = None
+    option_id: str = Field(pattern=r"^O-[0-9a-f]{8}$")
+    finding_id: str
+    kind: Literal["minimal_upgrade", "parent_bump", "rollback", "escalate"]
+    component: str
     target_version: str | None = None
-    fixes_package: str | None = None
-    fixes_version: str | None = None
-    commands: list[list[str]] = Field(default_factory=list)  # proposed only, never executed here
-    changes: list[dict] = Field(default_factory=list)  # manifest edits, applied by Module 3
-    steps: list[dict] = Field(default_factory=list)  # every package/version this option touches
-    major_jump: bool = False
-    notes: list[str] = Field(default_factory=list)
-    evidence_ids: list[str] = Field(min_length=1)
+    changes: list[Change] = Field(default_factory=list)
+    evidence_ids: list[EvidenceId] = Field(min_length=1)
+    reasons: list[str] = Field(default_factory=list)
     vetting: Literal["pending", "passed", "rejected"] = "pending"
     vetting_reasons: list[str] = Field(default_factory=list)
-    vetting_checks: list[dict] = Field(default_factory=list)
-    vetting_evidence_ids: list[str] = Field(default_factory=list)
-
-
-def make_option_id(**identity) -> str:
-    blob = json.dumps(identity, sort_keys=True, default=str)
-    return "O-" + hashlib.sha256(blob.encode()).hexdigest()[:8]
+    vetting_checks: list[VettingCheck] = Field(default_factory=list)

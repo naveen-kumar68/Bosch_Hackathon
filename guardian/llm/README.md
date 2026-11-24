@@ -1,9 +1,25 @@
 # Module 2 client — Phase 1
 
+The consolidated Phase 1–9 implementation and handoff guide is
+[MODULE-2.md](MODULE-2.md). Remaining application wiring and shared docs publication
+belong to the lead/Module 4. Phases 7–9 add narratives, bounded P0 opinions,
+recorded golden evaluation and the local-only recording hook.
+
+Phase 6 adds the verified Plan and zero-call deterministic escalation;
+see [PLAN.md](PLAN.md) for its API and integration requirements.
+
+Phase 3 adds the verified batch Judge and deterministic injection-derived
+findings; see [JUDGE.md](JUDGE.md) for the API, tests and lead wiring requirements.
+
+Phase 2 adds `claims.py`, a deterministic verifier in `guardian/verify/`, and
+optional `previous_errors` on both completion entry points. See
+`../verify/README.md` for provisional contracts, evidence adapter requirements,
+repair ownership and limitations. Shared pipeline migration is still lead-owned.
+
 `client.complete(role, messages, schema, budget_key)` returns a Pydantic model,
-`Usage`, and a cache-hit boolean. This validates structure, not factual accuracy.
-The Verifier and AIClaim adapter belong to later phases. The existing Checkpoint 2
-Judge remains unchanged until Phase 3.
+`Usage`, and a cache-hit boolean. The transport validates structure. The verified
+role adapter applies the Phase 2 fact checker; see JUDGE.md for its limits and
+pending shared-pipeline migration.
 
 Create a client with `create_completion_client(database)` and install it with
 `configure_completion(client)`, or call a `CompletionClient` directly. Use one

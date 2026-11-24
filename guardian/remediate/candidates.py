@@ -1,393 +1,300 @@
-"""Deterministic fix candidates. Proposes commands and manifest edits; never runs anything."""
+"""Deterministic proposals, not vetted fixes. Never reads or edits target files."""
 
-from pathlib import Path
+import hashlib
 
-import yaml
-from packaging.specifiers import InvalidSpecifier, SpecifierSet
-from packaging.version import InvalidVersion
-from packaging.version import Version as PyVersion
+from packageurl import PackageURL
+from packaging.specifiers import SpecifierSet
+from packaging.version import Version
 
-from guardian.remediate.models import FixOption, PrioritisedFinding, make_option_id
-from guardian.remediate.registry import VersionInfo
-from guardian.remediate.semver_rs import Requirement, Version
-
-MAX_DEPTH = 6
+from guardian.llm.completion import canonical
+from guardian.remediate.models import Change, FixOption, RemediationRequest
+from guardian.remediate.registry import RegistrySnapshot, identity
+from guardian.remediate.versions import matches, parse, stable
 
 
-class CargoScheme:
-    name = "cargo"
-    parse = staticmethod(Version)
-
-    @staticmethod
-    def allows(req: str, version) -> bool:
-        return Requirement(req).matches(version) if req.strip() else True
-
-    @staticmethod
-    def requirement_for(version) -> str:
-        return f"^{version.text}"
+def _record(value):
+    return value.model_dump() if hasattr(value, "model_dump") else value
 
 
-class PyScheme:
-    name = "pypi"
-    parse = staticmethod(PyVersion)
+class CandidateGenerator:
+    def __init__(self, registry: RegistrySnapshot):
+        self.registry = registry
 
-    @staticmethod
-    def allows(req: str, version) -> bool:
+    def candidates(self, pf) -> list[FixOption]:
+        request = RemediationRequest.model_validate(_record(pf))
+        purl = PackageURL.from_string(request.component)
+        ecosystem, name, current = purl.type, purl.name, purl.version
+        options, reasons = [], []
+        index = self.registry.lookup(ecosystem, name)
         try:
-            return SpecifierSet(req).contains(version, prereleases=False) if req.strip() else True
-        except InvalidSpecifier:
-            return False
-
-    @staticmethod
-    def requirement_for(version) -> str:
-        return f"=={version}"
-
-
-def compat_key(scheme, version):
-    if scheme.name == "cargo":
-        return version.compat_key()
-    major, minor = version.major, version.minor
-    return (major,) if major else (0, minor)
-
-
-def load_replacements(path: Path | None) -> dict:
-    """rules/replacements.yaml (Module 4): {package: alternative | {alternative: name}}."""
-    if path is None or not Path(path).is_file():
-        return {}
-    data = yaml.safe_load(Path(path).read_text(encoding="utf-8")) or {}
-    data = data.get("replacements", data)
-    return {k: (v["alternative"] if isinstance(v, dict) else v) for k, v in data.items()}
-
-
-class _Planner:
-    def __init__(self, pf, index, scheme):
-        self.pf, self.index, self.scheme = pf, index, scheme
-        self.evidence = list(pf.evidence_ids)
-        self._cache: dict[str, list[tuple]] = {}
-        self.manifest = pf.manifest or (
-            "Cargo.toml" if pf.ecosystem == "cargo" else "requirements.txt"
-        )
-
-    def usable(self, package: str) -> list[tuple]:
-        """Non-yanked, non-prerelease versions, ascending."""
-        if package not in self._cache:
-            result = self.index.lookup(package)
-            if result.evidence_id and result.evidence_id not in self.evidence:
-                self.evidence.append(result.evidence_id)
-            parsed = []
-            for info in result.versions:
-                try:
-                    version = self.scheme.parse(info.version)
-                except (ValueError, InvalidVersion):
-                    continue
-                if not info.yanked and not getattr(version, "is_prerelease", False):
-                    parsed.append((version, info))
-            self._cache[package] = sorted(parsed, key=lambda item: item[0])
-        return self._cache[package]
-
-    def dep_req(self, package: str, info: VersionInfo, child: str) -> str | None:
-        deps = info.deps if info.deps is not None else self.index.deps(package, info.version)
-        for dep in deps:
-            if dep.name.lower() == child.lower() and dep.kind != "dev":
-                return dep.req
-        return None
-
-    def edges_into(self, package: str):
-        return [e for e in self.pf.edges if e.child == package]
-
-    def is_fixed(self, version, fixed) -> bool:
-        return any(
-            version >= f and compat_key(self.scheme, version) == compat_key(self.scheme, f)
-            for f in fixed
-        ) or (bool(fixed) and version >= max(fixed))
-
-    def _step(self, package, current, target):
-        return {
-            "package": package,
-            "from_version": current,
-            "target_version": str(target.text if hasattr(target, "text") else target),
-        }
-
-    def _update(self, package, current, target):
-        if self.scheme.name == "cargo":
-            return [["cargo", "update", "-p", f"{package}@{current}", "--precise", self._v(target)]]
-        return []
-
-    @staticmethod
-    def _v(version) -> str:
-        return version.text if hasattr(version, "text") else str(version)
-
-    def resolve(self, package, current, target, depth):
-        """Plan so that `package` can sit at `target`: fix each blocking requirer."""
-        if depth > MAX_DEPTH:
-            return None
-        commands, changes, steps = [], [], []
-        for edge in self.edges_into(package):
-            if self.scheme.allows(edge.req, target):
-                continue
-            if edge.is_root:
-                changes.append(
-                    {
-                        "file": self.manifest,
-                        "action": "set_requirement",
-                        "dependency": package,
-                        "from_req": edge.req,
-                        "to_req": self.scheme.requirement_for(target),
-                    }
+            parse(ecosystem, current)
+            for boundary in request.fixed_versions:
+                parse(ecosystem, boundary.version)
+            if index is not None:
+                targets = self._targets(request, index, current)
+                for release, boundaries in targets:
+                    if self._compatible(ecosystem, release.version, request.constraints) and all(
+                        matches(ecosystem, release.version, parent.requirement)
+                        for parent in request.parents
+                    ):
+                        evidence = [
+                            *index.evidence_ids,
+                            *release.evidence_ids,
+                            *self._boundary_evidence(boundaries),
+                            *self._constraint_evidence(request.constraints),
+                            *(e for parent in request.parents for e in parent.evidence_ids),
+                        ]
+                        options.append(
+                            self._option(
+                                request,
+                                "minimal_upgrade",
+                                release.version,
+                                [
+                                    self._change(
+                                        ecosystem,
+                                        request.location.file,
+                                        name,
+                                        current,
+                                        release.version,
+                                    )
+                                ],
+                                evidence,
+                                [
+                                    "Smallest available stable upgrade within captured constraints; vetting pending."
+                                ],
+                            )
+                        )
+                        break
+                if not any(option.kind == "minimal_upgrade" for option in options):
+                    options.extend(
+                        self._parent_bumps(request, index, targets, ecosystem, name, current)
+                    )
+                baseline = request.baseline
+                if baseline and parse(ecosystem, baseline.version) < parse(ecosystem, current):
+                    release = next(
+                        (
+                            r
+                            for r in self._releases(request, index)
+                            if r.version == baseline.version
+                        ),
+                        None,
+                    )
+                    if release is not None:
+                        options.append(
+                            self._option(
+                                request,
+                                "rollback",
+                                baseline.version,
+                                [
+                                    self._change(
+                                        ecosystem,
+                                        request.location.file,
+                                        name,
+                                        current,
+                                        baseline.version,
+                                    )
+                                ],
+                                [
+                                    *baseline.evidence_ids,
+                                    *index.evidence_ids,
+                                    *release.evidence_ids,
+                                ],
+                                [
+                                    "Restore the captured baseline pin; compatibility and security vetting pending."
+                                ],
+                            )
+                        )
+            if not options:
+                reasons.append(
+                    "No proposal can be established from the captured versions and constraints."
                 )
+        except (ValueError, TypeError):
+            # Unsupported ranges/metadata must not become guessed compatibility.
+            options = []
+            reasons.append(
+                "Unsupported or inconsistent version/constraint metadata requires manual review."
+            )
+        if index is None:
+            reasons.append("Captured registry index is unavailable.")
+        options.append(
+            self._option(
+                request,
+                "escalate",
+                None,
+                [],
+                [],
+                reasons or ["Human review is always available; no automatic change is applied."],
+            )
+        )
+        unique = {}
+        for option in options:
+            if option.option_id in unique and unique[option.option_id] != option:
+                raise ValueError("Remediation option ID collision")
+            unique[option.option_id] = option
+        order = {"minimal_upgrade": 0, "parent_bump": 1, "rollback": 2, "escalate": 3}
+        return sorted(unique.values(), key=lambda o: (order[o.kind], o.option_id))
+
+    def _releases(self, request, index):
+        valid = []
+        for release in index.releases:
+            try:
+                if release.yanked is not False or not stable(index.ecosystem, release.version):
+                    continue
+                if (
+                    index.ecosystem == "pypi"
+                    and release.requires_python
+                    and (
+                        request.python_version is None
+                        or Version(request.python_version)
+                        not in SpecifierSet(release.requires_python)
+                    )
+                ):
+                    continue
+                valid.append(release)
+            except ValueError:
+                continue  # malformed release records are never selected
+        return sorted(valid, key=lambda r: (parse(index.ecosystem, r.version), r.version))
+
+    def _targets(self, request, index, current):
+        result = []
+        for release in self._releases(request, index):
+            parsed = parse(index.ecosystem, release.version)
+            if parsed <= parse(index.ecosystem, current):
                 continue
-            if edge.parent_version is None:
-                return None
-            sub = self.raise_to(
-                edge.parent,
-                edge.parent_version,
-                lambda info, e=edge: (
-                    (r := self.dep_req(e.parent, info, package)) is not None
-                    and self.scheme.allows(r, target)
-                ),
-                depth + 1,
-            )
-            if sub is None:
-                return None
-            commands += sub[0]
-            changes += sub[1]
-            steps += sub[2]
-        commands += self._update(package, current, target)
-        steps.append(self._step(package, current, target))
-        return commands, changes, steps
+            boundaries = []
+            for boundary in request.fixed_versions:
+                fixed = parse(index.ecosystem, boundary.version)
+                if index.ecosystem == "cargo":
+                    same_line = parsed.major == fixed.major and (
+                        fixed.major != 0 or parsed.minor == fixed.minor
+                    )
+                else:
+                    same_line = (
+                        parsed.epoch == fixed.epoch and parsed.release[0] == fixed.release[0]
+                    )
+                if parsed >= fixed and same_line:
+                    boundaries.append(boundary)
+            if boundaries:
+                result.append((release, boundaries))
+        return result
 
-    def raise_to(self, package, current, ok, depth):
-        """Smallest newer version of `package` accepted by `ok`, with its requirers resolved."""
-        try:
-            current_v = self.scheme.parse(current)
-        except (ValueError, InvalidVersion):
-            return None
-        for version, info in self.usable(package):
-            if version > current_v and ok(info):
-                plan = self.resolve(package, current, version, depth)
-                if plan:
-                    return plan
-        return None
+    @staticmethod
+    def _compatible(ecosystem, version, constraints):
+        return all(
+            matches(ecosystem, version, constraint.requirement) for constraint in constraints
+        )
 
+    @staticmethod
+    def _constraint_evidence(constraints):
+        return [e for constraint in constraints for e in constraint.evidence_ids]
 
-def _upgrade(pf, planner, scheme) -> FixOption | None:
-    fixed = []
-    for text in pf.fixed_versions:
-        try:
-            fixed.append(scheme.parse(text))
-        except (ValueError, InvalidVersion):
-            continue
-    if not fixed:
-        return None
-    current = scheme.parse(pf.version)
-    edges = planner.edges_into(pf.package)
-    candidates = [
-        (v, i) for v, i in planner.usable(pf.package) if v > current and planner.is_fixed(v, fixed)
-    ]
-    plan, lock_only = None, False
-    for version, _info in candidates:  # 1) lockfile-only: inside every existing requirement
-        if all(scheme.allows(e.req, version) for e in edges):
-            commands = planner._update(pf.package, pf.version, version)
-            changes = (
-                []
-                if commands
-                else [
-                    {
-                        "file": planner.manifest,
-                        "action": "add_constraint",
-                        "package": pf.package,
-                        "spec": scheme.requirement_for(version),
-                    }
+    @staticmethod
+    def _boundary_evidence(boundaries):
+        return [e for boundary in boundaries for e in boundary.evidence_ids]
+
+    def _parent_bumps(self, request, child_index, targets, ecosystem, name, current):
+        options = []
+        for parent in sorted(request.parents, key=lambda p: (p.package, p.current_version)):
+            parent_index = self.registry.lookup(ecosystem, parent.package)
+            if parent_index is None:
+                continue
+            found = False
+            for parent_release in self._releases(request, parent_index):
+                if parse(ecosystem, parent_release.version) <= parse(
+                    ecosystem, parent.current_version
+                ):
+                    continue
+                if (
+                    not self._compatible(ecosystem, parent_release.version, parent.constraints)
+                    or parent_release.dependencies is None
+                ):
+                    continue
+                dependencies = [
+                    d
+                    for d in parent_release.dependencies
+                    if identity(ecosystem, d.package) == identity(ecosystem, name)
                 ]
-            )
-            plan, lock_only = (
-                (commands, changes, [planner._step(pf.package, pf.version, version)]),
-                True,
-            )
-            break
-    if plan is None:  # 2) bump requirers (manifest edit when the requirer is the project)
-        for version, _info in candidates:
-            plan = planner.resolve(pf.package, pf.version, version, 0)
-            if plan:
-                break
-    if plan is None:
-        return None
-    commands, changes, steps = plan
-    target = steps[-1]["target_version"]
-    major = any(
-        compat_key(scheme, scheme.parse(s["from_version"]))
-        != compat_key(scheme, scheme.parse(s["target_version"]))
-        for s in steps
-    )
-    notes = [] if lock_only else ["Requirement blocks the fixed version: requirer bump needed."]
-    if major:
-        notes.append("Major (breaking-range) jump: review before applying.")
-    return _option(
-        pf,
-        planner,
-        "upgrade",
-        pf.package,
-        pf.version,
-        target,
-        commands,
-        changes,
-        steps,
-        major,
-        notes,
-    )
-
-
-def _option(
-    pf,
-    planner,
-    kind,
-    package,
-    from_v,
-    target,
-    commands,
-    changes,
-    steps,
-    major,
-    notes,
-    extra_evidence=(),
-):
-    evidence = list(dict.fromkeys([*planner.evidence, *extra_evidence]))
-    return FixOption(
-        option_id=make_option_id(
-            kind=kind,
-            package=package,
-            from_version=from_v,
-            target=target,
-            commands=commands,
-            changes=changes,
-            finding=pf.finding_id,
-        ),
-        kind=kind,
-        ecosystem=pf.ecosystem,
-        package=package,
-        from_version=from_v,
-        target_version=target,
-        fixes_package=pf.package if kind == "upgrade" else None,
-        fixes_version=target if kind == "upgrade" else None,
-        commands=commands,
-        changes=changes,
-        steps=steps,
-        major_jump=major,
-        notes=notes,
-        evidence_ids=evidence,
-    )
-
-
-def candidates(pf: PrioritisedFinding, index, replacements: dict | None = None) -> list[FixOption]:
-    """upgrade | pin | remove | replace | escalate, in that order. Escalate is always present."""
-    scheme = CargoScheme if pf.ecosystem == "cargo" else PyScheme
-    planner = _Planner(pf, index, scheme)
-    options: list[FixOption] = []
-    lookup_failed = False
-
-    if pf.type == "vulnerability":
-        try:
-            option = _upgrade(pf, planner, scheme)
-        except Exception:  # noqa: BLE001 -- registry outage must degrade to escalate, not crash
-            option, lookup_failed = None, True
-        if option:
-            options.append(option)
-
-    if pf.type != "vulnerability" and pf.baseline_version and pf.baseline_version != pf.version:
-        notes = ["Pin to the last known-good version; watch for a clean upstream release."]
-        try:
-            for version, _info in planner.usable(pf.package):
-                if version == scheme.parse(pf.baseline_version):
+                if not dependencies or any(d.conditional for d in dependencies):
+                    continue
+                for release, boundaries in targets:
+                    others = [p for p in request.parents if p is not parent]
+                    if (
+                        not self._compatible(ecosystem, release.version, request.constraints)
+                        or not all(
+                            matches(ecosystem, release.version, p.requirement) for p in others
+                        )
+                        or not all(
+                            matches(ecosystem, release.version, d.requirement) for d in dependencies
+                        )
+                    ):
+                        continue
+                    evidence = [
+                        *child_index.evidence_ids,
+                        *release.evidence_ids,
+                        *parent_index.evidence_ids,
+                        *parent_release.evidence_ids,
+                        *self._boundary_evidence(boundaries),
+                        *parent.evidence_ids,
+                        *self._constraint_evidence(parent.constraints),
+                        *self._constraint_evidence(request.constraints),
+                        *(e for p in others for e in p.evidence_ids),
+                    ]
+                    changes = [
+                        self._change(
+                            ecosystem,
+                            parent.location.file,
+                            parent.package,
+                            parent.current_version,
+                            parent_release.version,
+                        ),
+                        self._change(
+                            ecosystem, request.location.file, name, current, release.version
+                        ),
+                    ]
+                    options.append(
+                        self._option(
+                            request,
+                            "parent_bump",
+                            release.version,
+                            changes,
+                            evidence,
+                            [
+                                "Smallest captured parent bump admitting a fix-boundary candidate; vetting pending."
+                            ],
+                        )
+                    )
+                    found = True
                     break
-            else:
-                notes.append("Baseline version is yanked or absent from the index.")
-        except Exception:  # noqa: BLE001
-            lookup_failed = True
-        step = {
-            "package": pf.package,
-            "from_version": pf.version,
-            "target_version": pf.baseline_version,
+                if found:
+                    break
+        return options
+
+    @staticmethod
+    def _change(ecosystem, file, name, before, after):
+        return Change(
+            file=file,
+            package=name,
+            from_version=before,
+            to_version=after,
+            operation="lock_update"
+            if ecosystem == "cargo" and file.endswith("Cargo.lock")
+            else "replace_pin",
+        )
+
+    @staticmethod
+    def _option(request, kind, target, changes, evidence, reasons):
+        changes = sorted(changes, key=lambda c: (c.file, c.package, c.from_version, c.to_version))
+        action = {
+            "finding_id": request.finding_id,
+            "kind": kind,
+            "component": request.component,
+            "target_version": target,
+            "changes": [c.model_dump() for c in changes],
         }
-        options.append(
-            _option(
-                pf,
-                planner,
-                "pin",
-                pf.package,
-                pf.version,
-                pf.baseline_version,
-                planner._update(pf.package, pf.version, pf.baseline_version) or [],
-                []
-                if scheme.name == "cargo"
-                else [
-                    {
-                        "file": planner.manifest,
-                        "action": "set_requirement",
-                        "dependency": pf.package,
-                        "to_req": scheme.requirement_for(pf.baseline_version),
-                    }
-                ],
-                [step],
-                False,
-                notes,
-                pf.baseline_evidence_ids,
-            )
+        identifier = "O-" + hashlib.sha256(canonical(action).encode("utf-8")).hexdigest()[:8]
+        return FixOption(
+            option_id=identifier,
+            **action,
+            evidence_ids=sorted({*request.evidence_ids, *evidence}),
+            reasons=reasons,
         )
-
-    if pf.dev_only and not pf.imported:
-        options.append(
-            _option(
-                pf,
-                planner,
-                "remove",
-                pf.package,
-                pf.version,
-                None,
-                [],
-                [
-                    {
-                        "file": planner.manifest,
-                        "action": "remove_dependency",
-                        "dependency": pf.package,
-                        "section": "dev-dependencies",
-                    }
-                ],
-                [{"package": pf.package, "from_version": pf.version, "target_version": None}],
-                False,
-                ["Dev-only and never imported."],
-            )
-        )
-
-    alternative = (replacements or {}).get(pf.package)
-    if alternative:
-        options.append(
-            _option(
-                pf,
-                planner,
-                "replace",
-                alternative,
-                None,
-                None,
-                [],
-                [
-                    {
-                        "file": planner.manifest,
-                        "action": "replace_dependency",
-                        "dependency": pf.package,
-                        "with": alternative,
-                    }
-                ],
-                [{"package": alternative, "from_version": None, "target_version": None}],
-                False,
-                ["Replacement listed in rules/replacements.yaml."],
-            )
-        )
-
-    notes = ["Human decides."]
-    if lookup_failed:
-        notes.append("Registry lookup failed; no automatic option could be computed.")
-    escalate = _option(
-        pf, planner, "escalate", pf.package, pf.version, None, [], [], [], False, notes
-    )
-    options.append(escalate.model_copy(update={"vetting": "passed"}))
-    return options

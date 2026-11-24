@@ -1,158 +1,176 @@
-"""Typed fact index: evidence_id -> set of (type, value). Built only from tool output."""
+"""Trusted observations -> evidence-ID fact sets; no raw-text guessing or I/O."""
 
+import hashlib
+import json
 import re
-from decimal import Decimal, InvalidOperation
+from collections.abc import Iterable, Mapping
+from dataclasses import dataclass, field
+from decimal import Decimal
 
 from packageurl import PackageURL
+from pydantic import BaseModel
 
-ADVISORY = re.compile(
-    r"\b(?:CVE-\d{4}-\d{4,}|GHSA-[0-9a-z]{4}-[0-9a-z]{4}-[0-9a-z]{4}"
-    r"|RUSTSEC-\d{4}-\d{4}|PYSEC-\d{4}-\d+)\b",
-    re.IGNORECASE,
-)
-ARROW = re.compile(r"\s*(?:→|->)\s*")
+from guardian.llm.claims import Fact, FactReference
 
 
-def norm(kind: str, value) -> str:
-    text = str(value).strip().strip("`")
-    if kind in {"version", "fixed_version"}:
-        return text[1:] if text[:1] in "vV" and text[1:2].isdigit() else text
-    if kind == "advisory_id":
-        return text.upper()
+def record(value) -> dict:
+    if isinstance(value, BaseModel):
+        return value.model_dump(mode="json")
+    if isinstance(value, Mapping):
+        return dict(value)
+    raise TypeError("Trusted source records must be mappings or Pydantic models")
+
+
+def number(value) -> str:
+    return format(Decimal(str(value)).normalize(), "f")
+
+
+def value_key(kind: str, value) -> str:
     if kind == "score":
-        try:
-            return format(Decimal(text).normalize(), "f")
-        except InvalidOperation:
-            return text
+        return number(value)
     if kind == "path":
-        return " → ".join(p.strip().strip("`") for p in ARROW.split(text))
-    if kind == "package":
-        return text.lower()
-    return text
+        return " → ".join(part.strip() for part in value.split("→"))
+    return str(value)
 
 
-def _get(obj, name, default=None):
-    return obj.get(name, default) if isinstance(obj, dict) else getattr(obj, name, default)
+def fact_value(kind: str, value: str):
+    if kind == "score":
+        return float(value)
+    return int(value) if kind == "count" else value
 
 
-def split_component(component: str) -> tuple[str, str | None, str | None]:
-    """Return (name, version, purl) from a purl, name@version or bare name."""
-    if component.startswith("pkg:"):
-        try:
-            p = PackageURL.from_string(component)
-            return p.name, p.version, component
-        except ValueError:
-            return component, None, None
-    name, sep, version = component.rpartition("@")
-    if sep and name and version[:1].isdigit():
-        return name, version, None
-    return component, None, None
+@dataclass(frozen=True)
+class Option:
+    option_id: str
+    kind: str
+    vetting: str | None
+    fingerprint: str | None = None
 
 
-class FactsIndex:
-    def __init__(self):
-        self.evidence: dict[str, set[tuple[str, str]]] = {}
-        self.packages: set[str] = set()
-        self.versions: set[str] = set()
-        self.options: dict[str, dict] = {}
-        self.advisories: set[str] = set()
+def option_fingerprint(row: dict) -> str:
+    """Bind a trusted option's action and vetting proof, excluding extra fact annotations."""
+    fields = (
+        "option_id",
+        "finding_id",
+        "kind",
+        "component",
+        "target_version",
+        "changes",
+        "evidence_ids",
+        "reasons",
+        "vetting",
+        "vetting_reasons",
+        "vetting_checks",
+    )
+    payload = {key: row.get(key) for key in fields}
+    return hashlib.sha256(
+        json.dumps(
+            payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+        ).encode("utf-8")
+    ).hexdigest()
 
-    def has_evidence(self, evidence_id: str) -> bool:
-        return evidence_id in self.evidence
 
-    def add(self, evidence_ids, kind: str, value) -> None:
-        if value is None or value == "":
+@dataclass
+class FactIndex:
+    by_evidence: dict[str, set[tuple[str, str]]] = field(default_factory=dict)
+    known_names: set[str] = field(default_factory=set)
+    known_versions: set[str] = field(default_factory=set)
+    known_pairs: set[tuple[str, str]] = field(default_factory=set)
+    options: dict[str, Option] = field(default_factory=dict)
+
+    def references(self, evidence_ids):
+        return [
+            FactReference(type=kind, value=fact_value(kind, value), evidence_id=identifier)
+            for identifier in sorted(evidence_ids)
+            for kind, value in sorted(self.by_evidence[identifier])
+        ]
+
+    def add_evidence(self, evidence_id: str, facts: Iterable[Fact | dict] = ()):
+        if not isinstance(evidence_id, str) or not evidence_id:
+            raise ValueError("Evidence ID must be non-empty")
+        values = self.by_evidence.setdefault(evidence_id, set())
+        for item in facts:
+            fact = item if isinstance(item, Fact) else Fact.model_validate(item)
+            values.add((fact.type, value_key(fact.type, fact.value)))
+            if fact.type == "package":
+                self.known_names.add(fact.value)
+            elif fact.type in {"version", "fixed_version"}:
+                self.known_versions.add(fact.value)
+            elif fact.type == "purl":
+                self.add_component(fact.value)
+        packages = {value for kind, value in values if kind == "package"}
+        versions = {value for kind, value in values if kind == "version"}
+        if len(packages) == len(versions) == 1:
+            self.known_pairs.add((next(iter(packages)), next(iter(versions))))
+
+    def supports(self, fact: FactReference) -> bool:
+        return (fact.type, value_key(fact.type, fact.value)) in self.by_evidence.get(
+            fact.evidence_id, set()
+        )
+
+    def add_component(self, component: str):
+        if not component.startswith("pkg:"):
             return
-        value = norm(kind, value)
-        for evidence_id in evidence_ids:
-            self.evidence.setdefault(evidence_id, set()).add((kind, value))
-        if kind == "package":
-            self.packages.add(value)
-        elif kind in {"version", "fixed_version"}:
-            self.versions.add(value)
-        elif kind == "advisory_id":
-            self.advisories.add(value)
+        try:
+            purl = PackageURL.from_string(component)
+        except ValueError:
+            return
+        name = f"{purl.namespace}/{purl.name}" if purl.namespace else purl.name
+        self.known_names.add(name)
+        if purl.version:
+            self.known_versions.add(purl.version)
+            self.known_pairs.add((name, purl.version))
 
-    def supports(self, evidence_id: str, kind: str, value) -> bool:
-        return (kind, norm(kind, value)) in self.evidence.get(evidence_id, set())
 
-    def add_package(self, evidence_ids, component: str) -> None:
-        name, version, purl = split_component(component)
-        self.add(evidence_ids, "package", name)
-        self.add(evidence_ids, "version", version)
-        self.add(evidence_ids, "purl", purl)
+def build(ledger: Iterable, findings: Iterable = (), options: Iterable = ()) -> FactIndex:
+    """Index trusted facts, identities and vetted options.
 
-    def add_component(self, component) -> None:
-        ids = _get(component, "evidence_ids", [])
-        self.add(ids, "package", _get(component, "name"))
-        self.add(ids, "version", _get(component, "version"))
-        self.add(ids, "purl", _get(component, "purl"))
-
-    def add_path(self, evidence_ids, path) -> None:
-        names = [split_component(str(p))[0] for p in path]
-        for name in names:
-            self.add(evidence_ids, "package", name)
-        self.add(evidence_ids, "path", " → ".join(names))
-        self.add(evidence_ids, "path", " → ".join(str(p) for p in path))
-
-    def add_finding(self, finding) -> None:
-        ids = _get(finding, "evidence_ids", [])
-        self.add_package(ids, _get(finding, "component", ""))
-        for path in _get(finding, "paths", []) or []:
-            self.add_path(ids, path)
-        self._scan_details(ids, _get(finding, "details", {}) or {})
-
-    def _scan_details(self, ids, value, key="") -> None:
-        if isinstance(value, dict):
-            for k, v in value.items():
-                self._scan_details(ids, v, str(k))
-        elif isinstance(value, list):
-            for v in value:
-                self._scan_details(ids, v, key)
-        elif isinstance(value, str):
-            for match in ADVISORY.findall(value):
-                self.add(ids, "advisory_id", match)
-            if key.startswith("fixed"):
-                self.add(ids, "fixed_version", value)
-
-    def add_vulnerability(self, vuln) -> None:
-        ids = _get(vuln, "evidence_ids", [])
-        self.add_package(ids, _get(vuln, "component", ""))
-        for advisory in [_get(vuln, "id"), *(_get(vuln, "aliases", []) or [])]:
-            self.add(ids, "advisory_id", advisory)
-        for fixed in _get(vuln, "fixed_versions", []) or []:
-            self.add(ids, "fixed_version", fixed)
-        for field in ("cvss_score", "epss", "epss_percentile"):
-            self.add(ids, "score", _get(vuln, field))
-
-    def add_option(self, option) -> None:
-        ids = [*_get(option, "evidence_ids", []), *(_get(option, "vetting_evidence_ids", []) or [])]
-        option_id = _get(option, "option_id")
-        self.options[option_id] = {
-            "kind": _get(option, "kind"),
-            "vetting": _get(option, "vetting"),
-            "evidence_ids": list(ids),
-        }
-        self.add(ids, "option_id", option_id)
-        self.add(ids, "package", _get(option, "package"))
-        for field in ("from_version", "target_version"):
-            self.add(ids, "version", _get(option, field))
-        for step in _get(option, "steps", []) or []:
-            self.add(ids, "package", step.get("package"))
-            self.add(ids, "version", step.get("from_version"))
-            self.add(ids, "version", step.get("target_version"))
-
-    @classmethod
-    def build(cls, *, components=(), findings=(), vulnerabilities=(), options=(), evidence_ids=()):
-        index = cls()
-        for evidence_id in evidence_ids:
-            index.evidence.setdefault(evidence_id, set())
-        for component in components:
-            index.add_component(component)
-        for finding in findings:
-            index.add_finding(finding)
-        for vuln in vulnerabilities:
-            index.add_vulnerability(vuln)
-        for option in options:
-            index.add_option(option)
-        return index
+    Ledger rows: existing Evidence records register IDs; an adapter may add a
+    `facts` list of {type,value}. Finding/option adapters may provide `facts` as
+    {type,value,evidence_id} observations. Never pass LLM output as these sources.
+    Unknown observation evidence IDs are an error, not silently manufactured.
+    Existing finding summaries populate known identities but cannot manufacture
+    citation support for their prose or attach every fact to every evidence ID.
+    """
+    index = FactIndex()
+    for item in ledger:
+        row = record(item)
+        index.add_evidence(row.get("id", row.get("evidence_id")), row.get("facts", []))
+    for source, is_option in ((findings, False), (options, True)):
+        for item in source:
+            row = record(item)
+            component = row.get("component", row.get("purl"))
+            if isinstance(component, str):
+                index.add_component(component)
+            name = row.get("package_name", row.get("package"))
+            version = row.get("version")
+            if isinstance(name, str):
+                index.known_names.add(name)
+                if isinstance(version, str):
+                    index.known_pairs.add((name, version))
+            if isinstance(version, str):
+                index.known_versions.add(version)
+            for observation in row.get("facts", []):
+                fact = FactReference.model_validate(observation)
+                if fact.evidence_id not in index.by_evidence:
+                    raise ValueError(f"Unknown observation evidence ID {fact.evidence_id}")
+                index.add_evidence(fact.evidence_id, [Fact(type=fact.type, value=fact.value)])
+            if is_option:
+                identifier, kind = row.get("option_id"), row.get("kind")
+                if not isinstance(identifier, str) or not re.fullmatch(
+                    r"O-[0-9a-f]{8}", identifier
+                ):
+                    raise ValueError(
+                        "Trusted option requires O- plus eight lowercase hex characters"
+                    )
+                if not isinstance(kind, str):
+                    raise ValueError("Trusted option requires a kind")
+                option = Option(identifier, kind, row.get("vetting"), option_fingerprint(row))
+                if identifier in index.options and index.options[identifier] != option:
+                    raise ValueError(f"Conflicting trusted option {identifier}")
+                index.options[identifier] = option
+                for evidence_id in row.get("evidence_ids", []):
+                    if evidence_id not in index.by_evidence:
+                        raise ValueError(f"Unknown option evidence ID {evidence_id}")
+                    index.add_evidence(evidence_id, [Fact(type="option_id", value=identifier)])
+    return index

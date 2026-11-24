@@ -1,36 +1,40 @@
-"""Judge output schema. Flags are a closed set; severity is not representable."""
+"""Judge provider schemas: classification only, no deterministic decision fields."""
 
-from pydantic import Field, field_validator
+from typing import Literal
 
-from guardian.models import Model
-from guardian.verify.models import FactUsed
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-
-class JudgeFlags(Model):
-    runs_network: bool = False
-    downloads_and_executes: bool = False
-    reads_env_or_secrets: bool = False
-    writes_outside_build_dir: bool = False
-    obfuscated: bool = False
-    mentions_instructions_to_ai: bool = False
-    benign_build_step: bool = False
+from guardian.llm.claims import FactReference
 
 
-class JudgeItem(Model):
-    finding_id: str
+class JudgeFlags(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    runs_network: bool
+    downloads_and_executes: bool
+    reads_env_or_secrets: bool
+    writes_outside_build_dir: bool
+    obfuscated: bool
+    mentions_instructions_to_ai: bool
+    benign_build_step: bool
+
+
+class JudgeItem(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    finding_id: str = Field(min_length=1, max_length=128)
     flags: JudgeFlags
-    verdict: str = Field(pattern=r"^(benign|suspicious|malicious|unknown)$")
+    verdict: Literal["benign", "suspicious", "malicious", "unknown"]
     rationale: str
-    facts_used: list[FactUsed] = Field(default_factory=list)
-    cited_evidence_ids: list[str] = Field(default_factory=list)
+    facts_used: list[FactReference]
+    cited_evidence_ids: list[str] = Field(min_length=1)
 
     @field_validator("rationale")
     @classmethod
     def limit_words(cls, value):
         if len(value.split()) > 60:
-            raise ValueError("Rationale exceeds 60 words")
+            raise ValueError("Judge rationale exceeds 60 words")
         return value
 
 
-class JudgeBatch(Model):
-    items: list[JudgeItem] = Field(max_length=5)
+class JudgeBatch(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    items: list[JudgeItem] = Field(min_length=1, max_length=5)

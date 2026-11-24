@@ -1,56 +1,66 @@
-"""Deterministic code that turns Judge claims into findings. The AI never sets severity."""
+"""Deterministic additional findings; never edits or resolves source findings."""
 
 import hashlib
-import re
+from typing import Literal
 
-from guardian.detect.models import Finding
-from guardian.verify.models import AIClaim
+from pydantic import BaseModel, ConfigDict, Field
 
-INJECTION_MARKERS = re.compile(
-    r"ignore\s+(?:all\s+)?(?:previous|prior|above)\s+instructions"
-    r"|disregard\s+(?:all\s+)?(?:previous|prior)"
-    r"|mark\s+(?:this\s+)?(?:as\s+)?(?:safe|benign)"
-    r"|you\s+are\s+(?:an?\s+)?(?:ai|assistant|language model)"
-    r"|(?:system|assistant)\s*(?:prompt|message)\s*:"
-    r"|\bAI\s+(?:reviewer|scanner|assistant)\b"
-    r"|\bnote\s+to\s+(?:the\s+)?(?:ai|llm|model|reviewer)\b"
-    r"|[\"']verdict[\"']\s*:"
-    r"|(?:^|\n)\W*(?:assistant|ai|llm|model|reviewer)\s*:"
-    r"|report\s+success",
-    re.IGNORECASE,
-)
+from guardian.llm.claims import AIClaim
+from guardian.llm.completion import canonical
 
 
-def injection_markers(text: str) -> bool:
-    return bool(INJECTION_MARKERS.search(text or ""))
+class Finding(BaseModel):
+    """Provisional shared Finding projection, pending the lead's contracts."""
+
+    model_config = ConfigDict(extra="forbid", strict=True)
+    finding_id: str
+    type: Literal["prompt_injection_attempt"] = "prompt_injection_attempt"
+    category: Literal["suspicious_change"] = "suspicious_change"
+    component: str
+    description: str = "AI Judge flagged possible prompt injection in package code."
+    paths: list[list[str]] = Field(default_factory=list)
+    evidence_ids: list[str] = Field(min_length=1)
+    severity: Literal["high"] = "high"
+    severity_rule: Literal["prompt_injection_attempt"] = "prompt_injection_attempt"
+    confidence: Literal["low"] = "low"
+    needs_human_review: bool = True
+    needs_judgement: bool = False
+    details: dict = Field(default_factory=dict)
 
 
 def findings_from_judge(claims: list[AIClaim]) -> list[Finding]:
-    """One High prompt_injection_attempt per claim that flags instructions aimed at an AI."""
-    derived = []
+    findings = {}
     for claim in claims:
-        if claim.kind != "judge" or not claim.flags.get("mentions_instructions_to_ai"):
+        source = claim.judge_source
+        if (
+            claim.kind != "judge"
+            or not claim.verified
+            or claim.errors
+            or source is None
+            or claim.finding_id != source.finding_id
+            or source.response_errors
+            or claim.flags.get("mentions_instructions_to_ai") is not True
+        ):
             continue
-        evidence_ids = claim.payload.get("evidence_ids") or []
-        if not evidence_ids:
-            continue
-        component = claim.payload.get("component", "unknown")
-        digest = hashlib.sha256(f"prompt_injection:{claim.subject_id}".encode()).hexdigest()[:8]
-        derived.append(
-            Finding(
-                finding_id=f"F-PI-{digest}",
-                type="prompt_injection_attempt",
-                component=component,
-                description=(
-                    "Package code contains text addressed to an AI or reviewer "
-                    f"(source finding {claim.subject_id})."
-                ),
-                evidence_ids=list(evidence_ids),
-                severity="high",
-                severity_rule="prompt_injection_attempt",
-                confidence="medium",
-                needs_human_review=True,
-                details={"category": "suspicious_change", "source_finding": claim.subject_id},
-            )
+        evidence = sorted(
+            set(source.snippet_evidence_ids)
+            & set(claim.cited_evidence_ids)
+            & set(source.evidence_ids)
         )
-    return derived
+        if not evidence:
+            continue
+        identity = ["prompt_injection_attempt", source.finding_id, source.component, evidence]
+        identifier = "F-" + hashlib.sha256(canonical(identity).encode("utf-8")).hexdigest()[:12]
+        findings[identifier] = Finding(
+            finding_id=identifier,
+            component=source.component,
+            paths=[list(path) for path in source.paths],
+            evidence_ids=evidence,
+            details={
+                "source_finding_id": source.finding_id,
+                "origin": claim.origin,
+                "label": "AI inference",
+                "derived_by": "guardian.llm.derived",
+            },
+        )
+    return [findings[key] for key in sorted(findings)]
