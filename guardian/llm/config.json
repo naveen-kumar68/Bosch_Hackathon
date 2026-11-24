@@ -1,0 +1,14 @@
+{
+  "model_name": "guardian-reasoner",
+  "schema_version": "1",
+  "max_input_chars": 24000,
+  "max_snippet_chars": 4096,
+  "run_budget": {"max_calls": 5, "max_input_tokens": 150000, "max_output_tokens": 10000},
+  "role_budget": {"max_calls": 5, "max_input_tokens": 150000, "max_output_tokens": 10000},
+  "max_completion_tokens": 1500,
+  "reasoning_effort": {"judge": "medium", "plan": "medium", "explain": "low", "brief": "low", "second_opinion": "medium"},
+  "max_retry_after_seconds": 60,
+  "providers": [
+    {"name": "env", "key_env": "LLM_API_KEY", "url_env": "LLM_BASE_URL", "model_env": "LLM_MODEL", "json_schema": false, "input_usd_per_million": 0, "output_usd_per_million": 0}
+  ]
+}
