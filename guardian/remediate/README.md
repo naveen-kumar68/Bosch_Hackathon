@@ -1,5 +1,8 @@
 # Module 2 — Phase 4 candidates
 
+Phase 5 adds evidence-bearing vetting through `api.vet`; see
+[VETTING.md](VETTING.md) for the detector bindings, checks and integration limits.
+
 `api.candidates(pf)` / `CandidateGenerator(snapshot).candidates(pf)` produces
 declarative `FixOption` objects. No LLM, HTTP, files, subprocesses, target builds
 or commands are involved. Nothing is applied. Every option starts with
