@@ -80,6 +80,15 @@ class Change(Model):
     operation: Literal["lock_update", "replace_pin"]
 
 
+class VettingCheck(Model):
+    check: str
+    component: str
+    status: Literal["passed", "rejected"]
+    reasons: list[str] = Field(min_length=1)
+    evidence_ids: list[EvidenceId] = Field(min_length=1)
+    flags: list[str] = Field(default_factory=list)
+
+
 class FixOption(Model):
     option_id: str = Field(pattern=r"^O-[0-9a-f]{8}$")
     finding_id: str
@@ -91,3 +100,4 @@ class FixOption(Model):
     reasons: list[str] = Field(default_factory=list)
     vetting: Literal["pending", "passed", "rejected"] = "pending"
     vetting_reasons: list[str] = Field(default_factory=list)
+    vetting_checks: list[VettingCheck] = Field(default_factory=list)
