@@ -71,9 +71,21 @@ class JudgeSource(BaseModel):
     response_errors: list[str] = Field(default_factory=list)
 
 
+class PlanSource(BaseModel):
+    """Runtime Plan scope, never fields in a provider response schema."""
+
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
+    finding_id: str
+    component: str
+    option_ids: list[str]
+    option_fingerprints: dict[str, str]
+    evidence_ids: list[str]
+
+
 class AIClaim(ClaimContent):
     verified: bool = False
     errors: list[str] = Field(default_factory=list)
     needs_human_review: bool = True
-    origin: Literal["live", "recorded_test"] = "live"
+    origin: Literal["live", "recorded_test", "deterministic"] = "live"
     judge_source: JudgeSource | None = None
+    plan_source: PlanSource | None = None

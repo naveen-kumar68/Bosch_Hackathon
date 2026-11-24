@@ -174,6 +174,25 @@ class Verifier:
                 error(f"Unknown Judge flag {flag}")
         if result.flags and result.kind != "judge":
             error("Only Judge may report flags")
+        plan_source = result.plan_source
+        if plan_source is not None:
+            if result.kind != "plan" or result.finding_id != plan_source.finding_id:
+                error("Plan source does not match the claim")
+            if result.chosen_option_id not in plan_source.option_ids:
+                error("Plan chose an option outside its supplied options")
+            for identifier in plan_source.option_ids:
+                current = self.index.options.get(identifier)
+                if current is None or current.fingerprint != plan_source.option_fingerprints.get(
+                    identifier
+                ):
+                    error("Plan option snapshot no longer matches the fact index")
+            if not cited <= set(plan_source.evidence_ids):
+                error("Plan cited evidence outside its supplied context")
+            for fact in result.facts_used:
+                if fact.evidence_id not in plan_source.evidence_ids:
+                    error("Plan used fact evidence outside its supplied context")
+                if fact.type == "option_id" and fact.value not in plan_source.option_ids:
+                    error("Plan referenced an option outside its supplied options")
         source = result.judge_source
         if source is not None:
             if result.kind != "judge" or result.finding_id != source.finding_id:

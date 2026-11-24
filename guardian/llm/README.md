@@ -1,5 +1,8 @@
 # Module 2 client — Phase 1
 
+Phase 6 adds the verified Plan and zero-call deterministic escalation;
+see [PLAN.md](PLAN.md) for its API and integration requirements.
+
 Phase 3 adds the verified batch Judge and deterministic injection-derived
 findings; see [JUDGE.md](JUDGE.md) for the API, tests and lead wiring requirements.
 

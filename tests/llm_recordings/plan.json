@@ -1,0 +1,11 @@
+{
+  "_note":"Synthetic recorded-shape fixture, not a live provider transcript.",
+  "response":{
+    "chosen_option_id":"O-11111111",
+    "rationale":"Choose O-11111111 for human review.",
+    "trade_offs":["Prefer the smallest compatible change."],
+    "rollback_steps":["Request human review before reverting a dependency."],
+    "facts_used":[{"type":"option_id","value":"O-11111111","evidence_id":"EV-FIX"}],
+    "cited_evidence_ids":["EV-FIX"]
+  }
+}
