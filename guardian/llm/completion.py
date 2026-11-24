@@ -313,7 +313,9 @@ class CompletionClient:
             if not isinstance(content, str):
                 content = canonical(content)
             cleaned.append({"role": message["role"], "content": content})
-        if "facts_used" in schema.model_json_schema().get("properties", {}):
+        schema_data = schema.model_json_schema()
+        fact_schemas = [schema_data, *schema_data.get("$defs", {}).values()]
+        if any("facts_used" in model.get("properties", {}) for model in fact_schemas):
             cleaned.append(
                 {
                     "role": "system",

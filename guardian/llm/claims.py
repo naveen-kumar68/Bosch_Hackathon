@@ -59,7 +59,21 @@ class ClaimContent(BaseModel):
     risk_opinion: Literal["low", "medium", "high", "critical", "needs_review"] | None = None
 
 
+class JudgeSource(BaseModel):
+    """Runtime provenance supplied by code, never by a provider response."""
+
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
+    finding_id: str
+    component: str
+    evidence_ids: list[str]
+    snippet_evidence_ids: list[str]
+    paths: list[list[str]] = Field(default_factory=list)
+    response_errors: list[str] = Field(default_factory=list)
+
+
 class AIClaim(ClaimContent):
     verified: bool = False
     errors: list[str] = Field(default_factory=list)
     needs_human_review: bool = True
+    origin: Literal["live", "recorded_test"] = "live"
+    judge_source: JudgeSource | None = None

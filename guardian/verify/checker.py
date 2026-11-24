@@ -174,6 +174,20 @@ class Verifier:
                 error(f"Unknown Judge flag {flag}")
         if result.flags and result.kind != "judge":
             error("Only Judge may report flags")
+        source = result.judge_source
+        if source is not None:
+            if result.kind != "judge" or result.finding_id != source.finding_id:
+                error("Judge source does not match the claim")
+            for message in source.response_errors:
+                error(message)
+            if not cited <= set(source.evidence_ids):
+                error("Judge cited evidence outside its finding")
+            if not set(source.snippet_evidence_ids) <= set(source.evidence_ids):
+                error("Judge snippet evidence is not bound to its finding")
+            if not set(source.snippet_evidence_ids) <= cited:
+                error("Judge did not cite its snippet evidence")
+            if not source.snippet_evidence_ids and any(result.flags.values()):
+                error("Judge behavioral flags require snippet evidence")
         result.errors = errors
         result.verified = not errors
         # Verification proves bounded grounding checks, not safety or semantic truth.
