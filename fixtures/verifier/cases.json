@@ -1,0 +1,327 @@
+[
+  {
+    "case_id": "OK-01",
+    "description": "Correct answer, all facts cited",
+    "claim": {
+      "kind": "explain",
+      "text": "`CRATE1` `1.2.3` is affected by RUSTSEC-XXXX-0001; it is fixed in `1.2.4`.",
+      "facts_used": [
+        {
+          "type": "package",
+          "value": "CRATE1",
+          "evidence_id": "EV-xxxxxx"
+        },
+        {
+          "type": "version",
+          "value": "1.2.3",
+          "evidence_id": "EV-xxxxxx"
+        },
+        {
+          "type": "advisory_id",
+          "value": "RUSTSEC-XXXX-0001",
+          "evidence_id": "EV-xxxxxx"
+        },
+        {
+          "type": "fixed_version",
+          "value": "1.2.4",
+          "evidence_id": "EV-xxxxxx"
+        }
+      ],
+      "cited_evidence_ids": [
+        "EV-xxxxxx"
+      ]
+    },
+    "expected": {
+      "verified": true
+    }
+  },
+  {
+    "case_id": "OK-02",
+    "description": "Correct answer, all facts cited",
+    "claim": {
+      "kind": "explain",
+      "text": "`CRATE2` `0.4.0` is affected by RUSTSEC-XXXX-0002; it is fixed in `0.4.1`.",
+      "facts_used": [
+        {
+          "type": "package",
+          "value": "CRATE2",
+          "evidence_id": "EV-yyyyyy"
+        },
+        {
+          "type": "version",
+          "value": "0.4.0",
+          "evidence_id": "EV-yyyyyy"
+        },
+        {
+          "type": "advisory_id",
+          "value": "RUSTSEC-XXXX-0002",
+          "evidence_id": "EV-yyyyyy"
+        },
+        {
+          "type": "fixed_version",
+          "value": "0.4.1",
+          "evidence_id": "EV-yyyyyy"
+        }
+      ],
+      "cited_evidence_ids": [
+        "EV-yyyyyy"
+      ]
+    },
+    "expected": {
+      "verified": true
+    }
+  },
+  {
+    "case_id": "OK-03",
+    "description": "Correct answer, all facts cited",
+    "claim": {
+      "kind": "explain",
+      "text": "`CRATE3` `2.0.0` is affected by RUSTSEC-XXXX-0003; it is fixed in `2.0.1`.",
+      "facts_used": [
+        {
+          "type": "package",
+          "value": "CRATE3",
+          "evidence_id": "EV-zzzzzz"
+        },
+        {
+          "type": "version",
+          "value": "2.0.0",
+          "evidence_id": "EV-zzzzzz"
+        },
+        {
+          "type": "advisory_id",
+          "value": "RUSTSEC-XXXX-0003",
+          "evidence_id": "EV-zzzzzz"
+        },
+        {
+          "type": "fixed_version",
+          "value": "2.0.1",
+          "evidence_id": "EV-zzzzzz"
+        }
+      ],
+      "cited_evidence_ids": [
+        "EV-zzzzzz"
+      ]
+    },
+    "expected": {
+      "verified": true
+    }
+  },
+  {
+    "case_id": "BAD-01",
+    "description": "Invented CVE",
+    "claim": {
+      "kind": "explain",
+      "text": "`CRATE1` is affected by CVE-2099-12345.",
+      "facts_used": [
+        {
+          "type": "advisory_id",
+          "value": "CVE-2099-12345",
+          "evidence_id": "EV-xxxxxx"
+        }
+      ],
+      "cited_evidence_ids": [
+        "EV-xxxxxx"
+      ]
+    },
+    "expected": {
+      "verified": false,
+      "error_contains": "CVE-2099-12345"
+    }
+  },
+  {
+    "case_id": "BAD-02",
+    "description": "Wrong fixed version",
+    "claim": {
+      "kind": "explain",
+      "text": "`CRATE1` is fixed in `9.9.9`.",
+      "facts_used": [
+        {
+          "type": "fixed_version",
+          "value": "9.9.9",
+          "evidence_id": "EV-xxxxxx"
+        }
+      ],
+      "cited_evidence_ids": [
+        "EV-xxxxxx"
+      ]
+    },
+    "expected": {
+      "verified": false,
+      "error_contains": "9.9.9"
+    }
+  },
+  {
+    "case_id": "BAD-03",
+    "description": "Invented package",
+    "claim": {
+      "kind": "explain",
+      "text": "`totally-fake-crate` is vulnerable.",
+      "facts_used": [
+        {
+          "type": "package",
+          "value": "totally-fake-crate",
+          "evidence_id": "EV-xxxxxx"
+        }
+      ],
+      "cited_evidence_ids": [
+        "EV-xxxxxx"
+      ]
+    },
+    "expected": {
+      "verified": false,
+      "error_contains": "totally-fake-crate"
+    }
+  },
+  {
+    "case_id": "BAD-04",
+    "description": "Cites an evidence ID that does not exist",
+    "claim": {
+      "kind": "explain",
+      "text": "`CRATE1` is affected by RUSTSEC-XXXX-0001.",
+      "facts_used": [
+        {
+          "type": "advisory_id",
+          "value": "RUSTSEC-XXXX-0001",
+          "evidence_id": "EV-999999"
+        }
+      ],
+      "cited_evidence_ids": [
+        "EV-999999"
+      ]
+    },
+    "expected": {
+      "verified": false,
+      "error_contains": "EV-999999"
+    }
+  },
+  {
+    "case_id": "BAD-05",
+    "description": "Version in text but not in facts_used",
+    "claim": {
+      "kind": "explain",
+      "text": "`CRATE1` `1.2.3` is affected by RUSTSEC-XXXX-0001.",
+      "facts_used": [
+        {
+          "type": "package",
+          "value": "CRATE1",
+          "evidence_id": "EV-xxxxxx"
+        },
+        {
+          "type": "advisory_id",
+          "value": "RUSTSEC-XXXX-0001",
+          "evidence_id": "EV-xxxxxx"
+        }
+      ],
+      "cited_evidence_ids": [
+        "EV-xxxxxx"
+      ]
+    },
+    "expected": {
+      "verified": false,
+      "error_contains": "1.2.3"
+    }
+  },
+  {
+    "case_id": "BAD-06",
+    "description": "Wrong dependency path (extra made-up crate)",
+    "claim": {
+      "kind": "explain",
+      "text": "Path: kuksa-databroker -> mid-crate -> made-up-crate -> CRATE1",
+      "facts_used": [
+        {
+          "type": "dependency_path",
+          "value": "kuksa-databroker > mid-crate > made-up-crate > CRATE1",
+          "evidence_id": "EV-xxxxxx"
+        }
+      ],
+      "cited_evidence_ids": [
+        "EV-xxxxxx"
+      ]
+    },
+    "expected": {
+      "verified": false,
+      "error_contains": "made-up-crate"
+    }
+  },
+  {
+    "case_id": "BAD-07",
+    "description": "Made-up EPSS number",
+    "claim": {
+      "kind": "explain",
+      "text": "`CRATE1` has an EPSS score of 0.97.",
+      "facts_used": [
+        {
+          "type": "epss",
+          "value": "0.97",
+          "evidence_id": "EV-xxxxxx"
+        }
+      ],
+      "cited_evidence_ids": [
+        "EV-xxxxxx"
+      ]
+    },
+    "expected": {
+      "verified": false,
+      "error_contains": "0.97"
+    }
+  },
+  {
+    "case_id": "BAD-08",
+    "description": "Correct fact, cited from the wrong evidence ID",
+    "claim": {
+      "kind": "explain",
+      "text": "`CRATE1` is affected by RUSTSEC-XXXX-0001.",
+      "facts_used": [
+        {
+          "type": "advisory_id",
+          "value": "RUSTSEC-XXXX-0001",
+          "evidence_id": "EV-yyyyyy"
+        }
+      ],
+      "cited_evidence_ids": [
+        "EV-yyyyyy"
+      ]
+    },
+    "expected": {
+      "verified": false,
+      "error_contains": "EV-yyyyyy"
+    }
+  },
+  {
+    "case_id": "BAD-09",
+    "description": "Plan chooses an option ID that does not exist",
+    "claim": {
+      "kind": "plan",
+      "text": "Choose option O-deadbeef.",
+      "facts_used": [],
+      "cited_evidence_ids": [
+        "EV-xxxxxx"
+      ],
+      "chosen_option_id": "O-deadbeef"
+    },
+    "expected": {
+      "verified": false,
+      "error_contains": "O-deadbeef"
+    }
+  },
+  {
+    "case_id": "BAD-10",
+    "description": "Judge flag that is not allowed",
+    "claim": {
+      "kind": "judge",
+      "text": "Judge output.",
+      "facts_used": [],
+      "cited_evidence_ids": [
+        "EV-xxxxxx"
+      ],
+      "flags": {
+        "is_totally_safe": true
+      }
+    },
+    "expected": {
+      "verified": false,
+      "error_contains": "is_totally_safe"
+    }
+  }
+]
