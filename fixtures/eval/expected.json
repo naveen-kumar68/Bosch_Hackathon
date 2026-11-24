@@ -1,9 +1,0 @@
-{
-  "target": "REPLACE-WITH-PLANTED-DEMO-TARGET-NAME",
-  "must_detect": [
-    { "type": "integrity_mismatch", "component": "NAME@VERSION", "min_severity": "critical" },
-    { "type": "typosquat",          "component": "NAME@VERSION", "min_severity": "high" },
-    { "type": "capability",         "component": "NAME@VERSION", "min_severity": "high" }
-  ],
-  "notes": "Every planted anomaly is listed. Recall = detected / listed."
-}
