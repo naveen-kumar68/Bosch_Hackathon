@@ -1,10 +1,12 @@
 """Module 2 role facade. Explicit services support independent concurrent runs."""
 
+from guardian.llm.explain import Narrator
 from guardian.llm.judge_verified import VerifiedJudge
 from guardian.llm.plan import Planner
 
 _judge: VerifiedJudge | None = None
 _planner: Planner | None = None
+_narrator: Narrator | None = None
 
 
 def configure_judge(service: VerifiedJudge):
@@ -29,3 +31,22 @@ def plan(pf, options, *, previous_errors=None, service: Planner | None = None):
     if selected is None:
         return None  # facts-only; no configured index exists to verify an escalation claim
     return selected.plan(pf, options, previous_errors=previous_errors)
+
+
+def configure_explain(service: Narrator):
+    global _narrator
+    _narrator = service
+
+
+def explain(run, *, previous_errors=None, service: Narrator | None = None):
+    selected = service if service is not None else _narrator
+    return None if selected is None else selected.explain(run, previous_errors=previous_errors)
+
+
+def explain_brief(brief_struct, *, previous_errors=None, service: Narrator | None = None):
+    selected = service if service is not None else _narrator
+    return (
+        None
+        if selected is None
+        else selected.explain_brief(brief_struct, previous_errors=previous_errors)
+    )

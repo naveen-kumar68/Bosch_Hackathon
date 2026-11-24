@@ -33,6 +33,12 @@ def value_key(kind: str, value) -> str:
     return str(value)
 
 
+def fact_value(kind: str, value: str):
+    if kind == "score":
+        return float(value)
+    return int(value) if kind == "count" else value
+
+
 @dataclass(frozen=True)
 class Option:
     option_id: str
@@ -71,6 +77,13 @@ class FactIndex:
     known_versions: set[str] = field(default_factory=set)
     known_pairs: set[tuple[str, str]] = field(default_factory=set)
     options: dict[str, Option] = field(default_factory=dict)
+
+    def references(self, evidence_ids):
+        return [
+            FactReference(type=kind, value=fact_value(kind, value), evidence_id=identifier)
+            for identifier in sorted(evidence_ids)
+            for kind, value in sorted(self.by_evidence[identifier])
+        ]
 
     def add_evidence(self, evidence_id: str, facts: Iterable[Fact | dict] = ()):
         if not isinstance(evidence_id, str) or not evidence_id:

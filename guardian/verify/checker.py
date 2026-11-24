@@ -23,6 +23,7 @@ ADVISORY = re.compile(
 )
 VERSION = re.compile(r"(?<![\w.])v?\d+\.\d+(?:\.\d+)*(?:[-+][A-Za-z0-9.-]+)?(?!\w|\.\d)")
 DECIMAL = re.compile(r"(?<![\w.])\d+\.\d+(?!\w|\.\d)")
+INTEGER = re.compile(r"(?<![\w.])-?\d+(?![\w.])")
 NAME_VERSION = re.compile(
     r"(?<![\w@/])(@?[A-Za-z0-9][A-Za-z0-9/._:+-]*)@"
     r"(\d+(?:\.\d+)+(?:[-+][A-Za-z0-9.-]+)?)"
@@ -135,6 +136,12 @@ class Verifier:
                     token(number(value), {"score"})
             for match in OPTION_ID.finditer(text):
                 token(match.group(), {"option_id"})
+            if result.kind in {"explain", "brief"}:
+                numeric = standalone
+                for pattern in (BACKTICK, ADVISORY, NAME_VERSION, VERSION, DECIMAL, OPTION_ID):
+                    numeric = pattern.sub(" ", numeric)
+                for match in INTEGER.finditer(numeric):
+                    token(match.group(), {"count", "score", "version", "fixed_version"})
             for match in BACKTICK.finditer(text):
                 value = match.group(1).strip()
                 if NAME_VERSION.fullmatch(value):
@@ -175,6 +182,14 @@ class Verifier:
         if result.flags and result.kind != "judge":
             error("Only Judge may report flags")
         plan_source = result.plan_source
+        structured = result.structured_source
+        if structured is not None:
+            if result.kind != structured.kind or result.finding_id != structured.finding_id:
+                error("Structured role source does not match the claim")
+            if not cited <= set(structured.evidence_ids):
+                error("Claim cited evidence outside its structured context")
+            if any(f.evidence_id not in structured.evidence_ids for f in result.facts_used):
+                error("Claim used fact evidence outside its structured context")
         if plan_source is not None:
             if result.kind != "plan" or result.finding_id != plan_source.finding_id:
                 error("Plan source does not match the claim")

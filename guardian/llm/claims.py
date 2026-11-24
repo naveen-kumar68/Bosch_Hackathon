@@ -18,6 +18,8 @@ FactType = Literal[
     "score",
     "option_id",
     "flag",
+    "count",
+    "status",
 ]
 
 
@@ -32,6 +34,9 @@ class Fact(BaseModel):
         if info.data.get("type") == "score":
             if isinstance(value, bool) or not isinstance(value, (int, float)):
                 raise ValueError("Score facts require a finite number")
+        elif info.data.get("type") == "count":
+            if isinstance(value, bool) or not isinstance(value, int) or value < 0:
+                raise ValueError("Count facts require a non-negative integer")
         elif not isinstance(value, str) or not value.strip():
             raise ValueError("Non-score facts require a non-empty string")
         return value
@@ -82,6 +87,18 @@ class PlanSource(BaseModel):
     evidence_ids: list[str]
 
 
+class StructuredSource(BaseModel):
+    """Code-owned scope for structured narrative/opinion roles."""
+
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
+    kind: Literal["explain", "brief", "second_opinion"]
+    subject_id: str
+    finding_id: str | None = None
+    evidence_ids: list[str]
+    severity: Literal["info", "low", "medium", "high", "critical"] | None = None
+    priority: Literal["P0", "P1", "P2", "P3"] | None = None
+
+
 class AIClaim(ClaimContent):
     verified: bool = False
     errors: list[str] = Field(default_factory=list)
@@ -89,3 +106,4 @@ class AIClaim(ClaimContent):
     origin: Literal["live", "recorded_test", "deterministic"] = "live"
     judge_source: JudgeSource | None = None
     plan_source: PlanSource | None = None
+    structured_source: StructuredSource | None = None

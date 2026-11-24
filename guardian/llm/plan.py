@@ -61,13 +61,7 @@ class Planner:
             )
         if not self.enabled or self.client is None:
             return self._escalate(source, escalation, "AI Plan is off; request human review.")
-        facts = [
-            FactReference(
-                type=kind, value=float(value) if kind == "score" else value, evidence_id=identifier
-            ).model_dump()
-            for identifier in sorted(source.evidence_ids)
-            for kind, value in sorted(self.index.by_evidence[identifier])
-        ]
+        facts = [fact.model_dump() for fact in self.index.references(source.evidence_ids)]
         # Only explicitly projected fields are sent: no Judge prose, raw detector
         # details, snippets or arbitrary payload objects can enter this message.
         packet = {
