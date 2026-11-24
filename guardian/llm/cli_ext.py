@@ -126,6 +126,37 @@ def record_command(
     typer.echo(f"Recorded {role}; verified={result['verified']}")
 
 
+@app.command("demo")
+def demo_command(as_json: Annotated[bool, typer.Option("--json")] = False):
+    """Run the whole Module 2 flow offline on the planted demo; no network, no live LLM."""
+    from guardian.llm.demo import run_demo
+
+    result = run_demo()
+    if as_json:
+        typer.echo(json.dumps(result, indent=2, ensure_ascii=False))
+        return
+    typer.echo("== Fix options (vetting) ==")
+    for o in result["options"]:
+        why = f"  <- {'; '.join(o['reasons'])}" if o["reasons"] else ""
+        typer.echo(
+            f"  {o['option_id']}  {o['kind']:<16} target={o['target']}  vetting={o['vetting']}{why}"
+        )
+    typer.echo("== AI claims (every one checked by plain code) ==")
+    for c in result["claims"]:
+        mark = "VERIFIED  " if c["verified"] else "UNVERIFIED"
+        typer.echo(f"  [{mark}] {c['kind']:<15} {c['text']}")
+        for error in c["errors"]:
+            typer.echo(f"      error: {error}")
+    typer.echo(f"== Judge flags: {result['judge_flags']}  derived: {result['derived_findings']}")
+    v, i = result["verifier"], result["injection"]
+    typer.echo(
+        f"== Accepted hallucinations: {result['accepted_hallucinations']} | verifier caught "
+        f"{v['caught']}/{v['wrong']} wrong, accepted {v['accepted_correct']}/{v['correct']} "
+        f"correct | injection {i['passed']}/{i['total']}"
+    )
+    typer.echo("== live provider tested: False | target code executed: False")
+
+
 def register(root_app):
     root_app.add_typer(app, name="llm")
 
