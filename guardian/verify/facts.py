@@ -126,7 +126,7 @@ class FactsIndex:
             self.add(ids, "score", _get(vuln, field))
 
     def add_option(self, option) -> None:
-        ids = _get(option, "evidence_ids", [])
+        ids = [*_get(option, "evidence_ids", []), *(_get(option, "vetting_evidence_ids", []) or [])]
         option_id = _get(option, "option_id")
         self.options[option_id] = {
             "kind": _get(option, "kind"),
