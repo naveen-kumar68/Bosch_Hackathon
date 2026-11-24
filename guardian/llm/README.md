@@ -1,5 +1,10 @@
 # Module 2 client — Phase 1
 
+Phase 2 adds `claims.py`, a deterministic verifier in `guardian/verify/`, and
+optional `previous_errors` on both completion entry points. See
+`../verify/README.md` for provisional contracts, evidence adapter requirements,
+repair ownership and limitations. Existing Judge migration remains Phase 3.
+
 `client.complete(role, messages, schema, budget_key)` returns a Pydantic model,
 `Usage`, and a cache-hit boolean. This validates structure, not factual accuracy.
 The Verifier and AIClaim adapter belong to later phases. The existing Checkpoint 2

@@ -1,0 +1,79 @@
+{
+  "_note": "# TODO(Module 4): replace. Provisional Module 2 verifier fixtures.",
+  "ledger": [
+    {"id":"EV-001","facts":[
+      {"type":"package","value":"safe-crate"},
+      {"type":"version","value":"1.2.3"},
+      {"type":"purl","value":"pkg:cargo/safe-crate@1.2.3"},
+      {"type":"advisory_id","value":"CVE-2026-12345"},
+      {"type":"advisory_id","value":"GHSA-abcd-1234-5678"},
+      {"type":"score","value":8.2},
+      {"type":"path","value":"root → safe-crate"}
+    ]},
+    {"id":"EV-002","facts":[
+      {"type":"fixed_version","value":"1.2.4"},
+      {"type":"package","value":"safe-crate"},
+      {"type":"purl","value":"pkg:cargo/safe-crate@1.2.4"}
+    ]},
+    {"id":"EV-003","facts":[{"type":"flag","value":"runs_network"}]}
+  ],
+  "findings":[{"component":"pkg:cargo/safe-crate@1.2.3","evidence_ids":["EV-001"]}],
+  "options":[
+    {"option_id":"O-00000001","kind":"upgrade","vetting":"passed","evidence_ids":["EV-002"]},
+    {"option_id":"O-00000002","kind":"upgrade","vetting":"rejected","evidence_ids":["EV-002"]},
+    {"option_id":"O-00000003","kind":"escalate","vetting":null,"evidence_ids":["EV-001"]}
+  ],
+  "cases":[
+    {"name":"correct_advisory","valid":true,"claim":{
+      "kind":"explain","summary":"`safe-crate@1.2.3` has CVE-2026-12345 with CVSS 8.2.",
+      "facts_used":[{"type":"package","value":"safe-crate","evidence_id":"EV-001"},{"type":"version","value":"1.2.3","evidence_id":"EV-001"},{"type":"advisory_id","value":"CVE-2026-12345","evidence_id":"EV-001"},{"type":"score","value":8.2,"evidence_id":"EV-001"}],
+      "cited_evidence_ids":["EV-001"]
+    }},
+    {"name":"correct_plan","valid":true,"claim":{
+      "kind":"plan","chosen_option_id":"O-00000001","rationale":"Choose O-00000001 with fixed version `1.2.4`.",
+      "facts_used":[{"type":"option_id","value":"O-00000001","evidence_id":"EV-002"},{"type":"fixed_version","value":"1.2.4","evidence_id":"EV-002"}],
+      "cited_evidence_ids":["EV-002"]
+    }},
+    {"name":"correct_path","valid":true,"claim":{
+      "kind":"brief","summary":"Dependency path: `root → safe-crate`.",
+      "facts_used":[{"type":"path","value":"root → safe-crate","evidence_id":"EV-001"}],
+      "cited_evidence_ids":["EV-001"]
+    }},
+    {"name":"fake_cve","valid":false,"error":"EV-001 does not support advisory_id CVE-2026-99999","claim":{
+      "kind":"explain","summary":"CVE-2026-99999 needs review.",
+      "facts_used":[{"type":"advisory_id","value":"CVE-2026-99999","evidence_id":"EV-001"}],"cited_evidence_ids":["EV-001"]
+    }},
+    {"name":"wrong_fixed_version","valid":false,"error":"EV-002 does not support fixed_version 9.9.9","claim":{
+      "kind":"plan","chosen_option_id":"O-00000001","rationale":"Use `9.9.9`.",
+      "facts_used":[{"type":"fixed_version","value":"9.9.9","evidence_id":"EV-002"},{"type":"option_id","value":"O-00000001","evidence_id":"EV-002"}],"cited_evidence_ids":["EV-002"]
+    }},
+    {"name":"invented_package","valid":false,"error":"Unknown package imaginary-crate","claim":{
+      "kind":"judge","rationale":"Inspect `imaginary-crate`.",
+      "facts_used":[{"type":"package","value":"imaginary-crate","evidence_id":"EV-001"}],"cited_evidence_ids":["EV-001"]
+    }},
+    {"name":"wrong_path","valid":false,"error":"EV-001 does not support path root → imaginary-crate","claim":{
+      "kind":"brief","summary":"Path: `root → imaginary-crate`.",
+      "facts_used":[{"type":"path","value":"root → imaginary-crate","evidence_id":"EV-001"}],"cited_evidence_ids":["EV-001"]
+    }},
+    {"name":"uncited_number","valid":false,"error":"Unlisted fact 9.9","claim":{
+      "kind":"explain","summary":"CVSS is 9.9.","facts_used":[],"cited_evidence_ids":["EV-001"]
+    }},
+    {"name":"unknown_evidence","valid":false,"error":"Unknown evidence ID EV-999","claim":{
+      "kind":"explain","summary":"Needs review.","facts_used":[],"cited_evidence_ids":["EV-999"]
+    }},
+    {"name":"unvetted_option","valid":false,"error":"Option O-00000002 is not vetted: rejected","claim":{
+      "kind":"plan","chosen_option_id":"O-00000002","rationale":"Choose O-00000002.",
+      "facts_used":[{"type":"option_id","value":"O-00000002","evidence_id":"EV-002"}],"cited_evidence_ids":["EV-002"]
+    }},
+    {"name":"unknown_flag","valid":false,"error":"Unknown Judge flag delete_files","claim":{
+      "kind":"judge","rationale":"Needs review.","flags":{"delete_files":true},"facts_used":[],"cited_evidence_ids":["EV-003"]
+    }},
+    {"name":"fact_evidence_not_cited","valid":false,"error":"Fact evidence ID EV-002 is not cited","claim":{
+      "kind":"explain","summary":"Fixed version is `1.2.4`.",
+      "facts_used":[{"type":"fixed_version","value":"1.2.4","evidence_id":"EV-002"}],"cited_evidence_ids":["EV-001"]
+    }},
+    {"name":"unlisted_known_version","valid":false,"error":"Unlisted fact 1.2.4","claim":{
+      "kind":"explain","summary":"Fixed version is `1.2.4`.","facts_used":[],"cited_evidence_ids":["EV-002"]
+    }}
+  ]
+}
