@@ -1,0 +1,15 @@
+{
+  "schema_version": "1.6.0",
+  "id": "GUARDIAN-CANARY-0001",
+  "modified": "2026-11-24T00:00:00Z",
+  "published": "2026-11-24T00:00:00Z",
+  "summary": "Guardian canary: fake vulnerability used only to self-test detection",
+  "details": "Not a real advisory. Exists only inside Guardian's test fixtures.",
+  "affected": [
+    {
+      "package": { "ecosystem": "crates.io", "name": "guardian-canary" },
+      "ranges": [ { "type": "SEMVER", "events": [ { "introduced": "0" }, { "fixed": "0.0.2" } ] } ]
+    }
+  ],
+  "severity": [ { "type": "CVSS_V3", "score": "CVSS:3.1/AV:N/AC:L/PR:N/UI:N/S:U/C:H/I:H/A:H" } ]
+}

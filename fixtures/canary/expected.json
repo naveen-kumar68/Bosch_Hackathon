@@ -1,0 +1,7 @@
+{
+  "must_detect": [
+    { "kind": "vulnerability", "component": "guardian-canary@0.0.1", "advisory": "GUARDIAN-CANARY-0001" },
+    { "kind": "typosquat", "component": "serde_jsn@1.0.0", "looks_like": "serde_json" },
+    { "kind": "capability", "file": "canary_build.rs", "capabilities": ["network", "env_read"] }
+  ]
+}
