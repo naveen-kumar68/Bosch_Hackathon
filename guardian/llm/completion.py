@@ -11,7 +11,7 @@ import sqlite3
 import threading
 import time
 from collections.abc import Callable
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
 from pathlib import Path
@@ -164,6 +164,8 @@ class CompletionClient:
         run = self.runs.setdefault(budget_key, Usage())
         usage = self.roles.setdefault((budget_key, role), Usage())
         limits = self.config.role_budgets.get(role, self.config.role_budget)
+        if role == "second_opinion":
+            limits = replace(limits, max_calls=min(3, limits.max_calls))
         output_tokens = self.config.max_completion_tokens
         for current, cap in ((run, self.config.run_budget), (usage, limits)):
             if (
@@ -313,7 +315,9 @@ class CompletionClient:
             if not isinstance(content, str):
                 content = canonical(content)
             cleaned.append({"role": message["role"], "content": content})
-        if "facts_used" in schema.model_json_schema().get("properties", {}):
+        schema_data = schema.model_json_schema()
+        fact_schemas = [schema_data, *schema_data.get("$defs", {}).values()]
+        if any("facts_used" in model.get("properties", {}) for model in fact_schemas):
             cleaned.append(
                 {
                     "role": "system",

@@ -1,0 +1,5 @@
+{
+  "_note":"Synthetic recorded-shape fixtures; not live provider transcripts.",
+  "explain":{"summary":"Run is `complete` with 2 findings.","key_points":["Human review remains required."],"facts_used":[{"type":"status","value":"complete","evidence_id":"EV-RUN"},{"type":"count","value":2,"evidence_id":"EV-RUN"}],"cited_evidence_ids":["EV-RUN"]},
+  "brief":{"summary":"Review `safe` before changing dependencies.","open_questions":["What validation is still needed?"],"facts_used":[{"type":"package","value":"safe","evidence_id":"EV-FIND"}],"cited_evidence_ids":["EV-FIND"]}
+}
