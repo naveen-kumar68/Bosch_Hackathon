@@ -25,7 +25,7 @@ from guardian.llm.completion import (
 from guardian.llm.judge_schema import JudgeBatch
 from guardian.llm.sanitise import package_name, snippet
 from guardian.verify import api as verify_api
-from guardian.verify.facts import FactIndex, record
+from guardian.verify.facts import FactIndex, fact_value, record
 
 SYSTEM = Path(__file__).with_name("prompts").joinpath("judge.txt").read_text("utf-8").strip()
 CAPABILITY_TYPES = frozenset(
@@ -118,7 +118,7 @@ class VerifiedJudge:
         observations = [
             {
                 "type": kind,
-                "value": float(value) if kind == "score" else value,
+                "value": fact_value(kind, value),
                 "evidence_id": identifier,
             }
             for identifier in sorted(allowed)

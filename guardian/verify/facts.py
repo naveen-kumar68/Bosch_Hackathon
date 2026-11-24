@@ -1,5 +1,7 @@
 """Trusted observations -> evidence-ID fact sets; no raw-text guessing or I/O."""
 
+import hashlib
+import json
 import re
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass, field
@@ -31,11 +33,41 @@ def value_key(kind: str, value) -> str:
     return str(value)
 
 
+def fact_value(kind: str, value: str):
+    if kind == "score":
+        return float(value)
+    return int(value) if kind == "count" else value
+
+
 @dataclass(frozen=True)
 class Option:
     option_id: str
     kind: str
     vetting: str | None
+    fingerprint: str | None = None
+
+
+def option_fingerprint(row: dict) -> str:
+    """Bind a trusted option's action and vetting proof, excluding extra fact annotations."""
+    fields = (
+        "option_id",
+        "finding_id",
+        "kind",
+        "component",
+        "target_version",
+        "changes",
+        "evidence_ids",
+        "reasons",
+        "vetting",
+        "vetting_reasons",
+        "vetting_checks",
+    )
+    payload = {key: row.get(key) for key in fields}
+    return hashlib.sha256(
+        json.dumps(
+            payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False, allow_nan=False
+        ).encode("utf-8")
+    ).hexdigest()
 
 
 @dataclass
@@ -45,6 +77,13 @@ class FactIndex:
     known_versions: set[str] = field(default_factory=set)
     known_pairs: set[tuple[str, str]] = field(default_factory=set)
     options: dict[str, Option] = field(default_factory=dict)
+
+    def references(self, evidence_ids):
+        return [
+            FactReference(type=kind, value=fact_value(kind, value), evidence_id=identifier)
+            for identifier in sorted(evidence_ids)
+            for kind, value in sorted(self.by_evidence[identifier])
+        ]
 
     def add_evidence(self, evidence_id: str, facts: Iterable[Fact | dict] = ()):
         if not isinstance(evidence_id, str) or not evidence_id:
@@ -126,7 +165,7 @@ def build(ledger: Iterable, findings: Iterable = (), options: Iterable = ()) -> 
                     )
                 if not isinstance(kind, str):
                     raise ValueError("Trusted option requires a kind")
-                option = Option(identifier, kind, row.get("vetting"))
+                option = Option(identifier, kind, row.get("vetting"), option_fingerprint(row))
                 if identifier in index.options and index.options[identifier] != option:
                     raise ValueError(f"Conflicting trusted option {identifier}")
                 index.options[identifier] = option
