@@ -137,6 +137,10 @@ class FactsIndex:
         self.add(ids, "package", _get(option, "package"))
         for field in ("from_version", "target_version"):
             self.add(ids, "version", _get(option, field))
+        for step in _get(option, "steps", []) or []:
+            self.add(ids, "package", step.get("package"))
+            self.add(ids, "version", step.get("from_version"))
+            self.add(ids, "version", step.get("target_version"))
 
     @classmethod
     def build(cls, *, components=(), findings=(), vulnerabilities=(), options=(), evidence_ids=()):
