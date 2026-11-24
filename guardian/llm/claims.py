@@ -107,3 +107,4 @@ class AIClaim(ClaimContent):
     judge_source: JudgeSource | None = None
     plan_source: PlanSource | None = None
     structured_source: StructuredSource | None = None
+    opinion_disagrees: bool | None = None
