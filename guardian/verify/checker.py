@@ -53,7 +53,9 @@ class Verifier:
 
     def check(self, claim: AIClaim | ClaimContent) -> AIClaim:
         # Discard any previous verdict, including model-supplied verified=true.
-        data = claim.model_dump(exclude={"verified", "errors", "needs_human_review"})
+        data = claim.model_dump(
+            exclude={"verified", "errors", "needs_human_review", "opinion_disagrees"}
+        )
         result = AIClaim.model_validate(data)
         errors = []
 
@@ -190,6 +192,14 @@ class Verifier:
                 error("Claim cited evidence outside its structured context")
             if any(f.evidence_id not in structured.evidence_ids for f in result.facts_used):
                 error("Claim used fact evidence outside its structured context")
+            if structured.kind == "second_opinion":
+                if structured.priority != "P0":
+                    error("Second opinion requires a P0 source")
+                levels = {"info": 0, "low": 1, "medium": 2, "high": 3, "critical": 4}
+                if result.risk_opinion in levels and structured.severity in levels:
+                    result.opinion_disagrees = (
+                        abs(levels[result.risk_opinion] - levels[structured.severity]) >= 1
+                    )
         if plan_source is not None:
             if result.kind != "plan" or result.finding_id != plan_source.finding_id:
                 error("Plan source does not match the claim")
@@ -225,5 +235,10 @@ class Verifier:
         result.errors = errors
         result.verified = not errors
         # Verification proves bounded grounding checks, not safety or semantic truth.
-        result.needs_human_review = bool(errors) or getattr(claim, "needs_human_review", True)
+        result.needs_human_review = (
+            bool(errors)
+            or getattr(claim, "needs_human_review", True)
+            or result.opinion_disagrees is True
+            or result.risk_opinion == "needs_review"
+        )
         return result
