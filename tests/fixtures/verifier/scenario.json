@@ -1,0 +1,102 @@
+{
+  "evidence_ids": [
+    "EV-001",
+    "EV-010",
+    "EV-021",
+    "EV-030"
+  ],
+  "components": [
+    {
+      "name": "leafcrate",
+      "version": "1.2.3",
+      "purl": "pkg:cargo/leafcrate@1.2.3",
+      "evidence_ids": [
+        "EV-010"
+      ]
+    },
+    {
+      "name": "middle",
+      "version": "0.4.0",
+      "purl": "pkg:cargo/middle@0.4.0",
+      "evidence_ids": [
+        "EV-010"
+      ]
+    },
+    {
+      "name": "app",
+      "version": "0.1.0",
+      "purl": "pkg:cargo/app@0.1.0",
+      "evidence_ids": [
+        "EV-010"
+      ]
+    }
+  ],
+  "findings": [
+    {
+      "finding_id": "F-1",
+      "type": "vulnerability",
+      "component": "pkg:cargo/leafcrate@1.2.3",
+      "paths": [
+        [
+          "app",
+          "middle",
+          "leafcrate"
+        ]
+      ],
+      "evidence_ids": [
+        "EV-001"
+      ],
+      "details": {}
+    }
+  ],
+  "vulnerabilities": [
+    {
+      "id": "RUSTSEC-2024-0001",
+      "aliases": [
+        "CVE-2024-11111",
+        "GHSA-abcd-efgh-ijkl"
+      ],
+      "component": "pkg:cargo/leafcrate@1.2.3",
+      "evidence_ids": [
+        "EV-001"
+      ],
+      "fixed_versions": [
+        "1.2.4"
+      ],
+      "cvss_score": 7.5,
+      "epss": 0.12
+    }
+  ],
+  "options": [
+    {
+      "option_id": "O-aaaaaaaa",
+      "kind": "upgrade",
+      "vetting": "passed",
+      "package": "leafcrate",
+      "from_version": "1.2.3",
+      "target_version": "1.2.4",
+      "evidence_ids": [
+        "EV-021"
+      ]
+    },
+    {
+      "option_id": "O-bbbbbbbb",
+      "kind": "upgrade",
+      "vetting": "rejected",
+      "package": "leafcrate",
+      "from_version": "1.2.3",
+      "target_version": "1.3.0",
+      "evidence_ids": [
+        "EV-021"
+      ]
+    },
+    {
+      "option_id": "O-eeeeeeee",
+      "kind": "escalate",
+      "vetting": "passed",
+      "evidence_ids": [
+        "EV-021"
+      ]
+    }
+  ]
+}
