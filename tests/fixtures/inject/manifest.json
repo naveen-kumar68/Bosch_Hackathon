@@ -1,0 +1,1 @@
+{"recordings":"../../llm_recordings/judge_injection.json","cases":[{"file":"ignore.rs","response_key":"ignore.rs"},{"file":"fake_json.rs","response_key":"fake_json.rs"},{"file":"curl.rs","response_key":"curl.rs"}]}

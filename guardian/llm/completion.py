@@ -11,6 +11,7 @@ import sqlite3
 import threading
 import time
 from collections.abc import Callable
+from contextlib import closing
 from dataclasses import dataclass, field, replace
 from datetime import UTC, datetime
 from email.utils import parsedate_to_datetime
@@ -154,7 +155,7 @@ class CompletionClient:
         self.runs: dict[str, Usage] = {}
         self.roles: dict[tuple[str, str], Usage] = {}
         database.parent.mkdir(parents=True, exist_ok=True)
-        with sqlite3.connect(database) as conn:
+        with closing(sqlite3.connect(database)) as conn, conn:
             conn.execute(
                 "CREATE TABLE IF NOT EXISTS completion_cache "
                 "(key TEXT PRIMARY KEY, response TEXT NOT NULL, provider TEXT NOT NULL)"
@@ -363,7 +364,7 @@ class CompletionClient:
                 }
             ).encode("utf-8")
         ).hexdigest()
-        with sqlite3.connect(self.database) as conn:
+        with closing(sqlite3.connect(self.database)) as conn, conn:
             row = conn.execute(
                 "SELECT response, provider FROM completion_cache WHERE key=?", (key,)
             ).fetchone()
@@ -371,7 +372,7 @@ class CompletionClient:
             try:
                 return schema.model_validate_json(row[0]), Usage(provider=row[1]), True
             except ValidationError:
-                with sqlite3.connect(self.database) as conn:
+                with closing(sqlite3.connect(self.database)) as conn, conn:
                     conn.execute("DELETE FROM completion_cache WHERE key=?", (key,))
         usage = Usage()
         for attempt in range(2):
@@ -406,7 +407,7 @@ class CompletionClient:
                 safe = schema.model_validate(sanitise(parsed.model_dump(mode="json")))
             except ValidationError:
                 raise LLMOutputError("LLM output cannot be safely persisted") from None
-            with sqlite3.connect(self.database) as conn:
+            with closing(sqlite3.connect(self.database)) as conn, conn:
                 conn.execute(
                     "INSERT OR REPLACE INTO completion_cache VALUES (?,?,?)",
                     (key, safe.model_dump_json(), provider),

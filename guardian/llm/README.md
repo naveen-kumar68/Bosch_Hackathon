@@ -1,5 +1,10 @@
 # Module 2 client — Phase 1
 
+The consolidated Phase 1–9 implementation and handoff guide is
+[MODULE-2.md](MODULE-2.md). Remaining application wiring and shared docs publication
+belong to the lead/Module 4. Phases 7–9 add narratives, bounded P0 opinions,
+recorded golden evaluation and the local-only recording hook.
+
 Phase 6 adds the verified Plan and zero-call deterministic escalation;
 see [PLAN.md](PLAN.md) for its API and integration requirements.
 
