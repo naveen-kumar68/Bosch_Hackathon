@@ -1,6 +1,7 @@
 """Deterministic additional findings; never edits or resolves source findings."""
 
 import hashlib
+import re
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -64,3 +65,23 @@ def findings_from_judge(claims: list[AIClaim]) -> list[Finding]:
             },
         )
     return [findings[key] for key in sorted(findings)]
+
+
+INJECTION_MARKERS = re.compile(
+    r"ignore\s+(?:all\s+)?(?:previous|prior|above)\s+instructions"
+    r"|disregard\s+(?:all\s+)?(?:previous|prior)"
+    r"|mark\s+(?:this\s+)?(?:as\s+)?(?:safe|benign)"
+    r"|you\s+are\s+(?:an?\s+)?(?:ai|assistant|language model)"
+    r"|(?:system|assistant)\s*(?:prompt|message)\s*:"
+    r"|\bAI\s+(?:reviewer|scanner|assistant)\b"
+    r"|\bnote\s+to\s+(?:the\s+)?(?:ai|llm|model|reviewer)\b"
+    r"|[\"']verdict[\"']\s*:"
+    r"|(?:^|\n)\W*(?:assistant|ai|llm|model|reviewer)\s*:"
+    r"|\breport\s+success\b",
+    re.IGNORECASE,
+)
+
+
+def injection_markers(text: str) -> bool:
+    """Deterministic check: text addressed to an AI. Code may raise the flag, never lower it."""
+    return bool(INJECTION_MARKERS.search(text or ""))

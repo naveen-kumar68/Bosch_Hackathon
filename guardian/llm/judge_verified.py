@@ -22,6 +22,7 @@ from guardian.llm.completion import (
     Usage,
     canonical,
 )
+from guardian.llm.derived import injection_markers
 from guardian.llm.judge_schema import JudgeBatch
 from guardian.llm.sanitise import package_name, snippet
 from guardian.verify import api as verify_api
@@ -242,6 +243,10 @@ class VerifiedJudge:
                 }
             else:
                 content = item.model_dump(exclude={"finding_id"})
+            if code is not None and injection_markers(code.text):
+                # A fooled model must not hide an attack: code can only raise this flag.
+                content["flags"] = {**content["flags"], "mentions_instructions_to_ai": True}
+                self.events.append(f"Judge flag raised by code for {candidate.finding_id}")
             claim = AIClaim(kind="judge", finding_id=candidate.finding_id, **content)
             claim.origin = (
                 "live"
